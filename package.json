@@ -6,17 +6,29 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
+    "build:ios": "VITE_CAPACITOR=true tsc && VITE_CAPACITOR=true vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "preview:lan": "vite preview --host 0.0.0.0 --port 4173",
+    "icons": "node scripts/generate-icons.mjs",
+    "cap:sync": "npm run build:ios && npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "ios": "npm run cap:sync && npm run cap:open",
     "start": "node launcher/index.js",
     "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe"
   },
   "author": "deac.online",
   "license": "MIT",
   "dependencies": {
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "dexie": "^4.0.11",
     "pdfjs-dist": "^4.10.38"
   },
   "devDependencies": {
+    "sharp": "^0.35.1",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
     "vite-plugin-pwa": "^0.21.1",

@@ -9,3 +9,9 @@ logs/
 Thumbs.db
 DeezPDFReader.exe
 *.local
+
+# Xcode user-specific files
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/Pods/
+*.xcuserstate

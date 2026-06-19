@@ -94,37 +94,92 @@ The folder picker requires Chrome or Edge. On Safari or Firefox, use **Add PDF**
 
 ```bash
 npm install
-npm run dev      # Development server
-npm run build    # Production build
-npm start        # Run via launcher
+npm run dev          # Development server
+npm run build        # Production web/PWA build
+npm run build:ios    # Production build for Capacitor iOS
+npm run cap:sync     # Build + copy web assets into ios/
+npm run cap:open     # Open the Xcode project
+npm run ios          # Sync and open Xcode (one command)
+npm start            # Run via launcher
 ```
+
+---
+
+## iOS / App Store (Xcode)
+
+DeezPDF Reader includes a native iOS wrapper via [Capacitor](https://capacitorjs.com). The web app lives in `dist/`; Capacitor ships it inside a native shell you can open in Xcode.
+
+### Requirements
+
+- macOS with **Xcode** installed (from the Mac App Store)
+- An **Apple Developer** account for device testing, TestFlight, or App Store upload
+- Node.js (same as the rest of the project)
+
+### Open in Xcode
+
+After `npm install`:
+
+```bash
+npm run ios
+```
+
+This builds the app, syncs assets into `ios/`, and opens **`ios/App/App.xcodeproj`** in Xcode.
+
+To sync again after web changes without opening Xcode:
+
+```bash
+npm run cap:sync
+```
+
+### Run on a device or simulator
+
+1. In Xcode, select the **App** scheme and a simulator or connected iPhone.
+2. Open **Signing & Capabilities** and choose your **Team**.
+3. Confirm the bundle ID (`online.deac.deezpdf`) or change it to one you own.
+4. Press **Run** (⌘R).
+
+### Upload to App Store / TestFlight
+
+1. In Xcode, set **Version** and **Build** under the App target (General tab).
+2. Choose **Any iOS Device** as the run destination.
+3. **Product → Archive**, then **Distribute App**.
+4. Follow the prompts for TestFlight or App Store Connect.
+
+Export compliance is preconfigured (`ITSAppUsesNonExemptEncryption = false`) because the app uses only standard HTTPS and local storage.
+
+### iOS notes
+
+- **Add PDF** works via the native file picker.
+- **Add Folder** is hidden on iOS (not supported in mobile Safari/WebKit).
+- PDFs stay on-device in IndexedDB — same privacy model as the web app.
+- Regenerate icons/splash assets anytime with `npm run icons`.
 
 ---
 
 ## Platform Support
 
-| Feature | Chrome/Edge | Safari | Firefox |
-|---------|-------------|--------|---------|
-| Add PDF | Yes | Yes | Yes |
-| Add Folder | Yes | No | No |
-| Swipe navigation | Yes | Yes | Yes |
-| Offline reading | Yes | Yes | Yes |
-| One-click launcher | Windows/Mac | Mac | — |
+| Feature | Chrome/Edge | Safari | Firefox | iOS App |
+|---------|-------------|--------|---------|---------|
+| Add PDF | Yes | Yes | Yes | Yes |
+| Add Folder | Yes | No | No | No |
+| Swipe navigation | Yes | Yes | Yes | Yes |
+| Offline reading | Yes | Yes | Yes | Yes |
+| One-click launcher | Windows/Mac | Mac | — | — |
+| App Store / TestFlight | — | — | — | Yes |
 
 ---
 
 ## TODO
 
-- [ ] **iPhone install (recommended path)** — Build and host the PWA, then add to Home Screen in Safari:
+- [ ] **iPhone PWA install (no App Store)** — Build and host the PWA, then add to Home Screen in Safari:
   1. Run `npm run build` to produce the `dist/` folder.
   2. Deploy `dist/` to static hosting with HTTPS (e.g. [Netlify Drop](https://app.netlify.com/drop), Cloudflare Pages, Vercel, or GitHub Pages).
   3. On iPhone, open the hosted URL in **Safari** (not Chrome).
   4. Tap **Share** → **Add to Home Screen** for a standalone app icon.
-- [ ] **iPhone LAN test (before deploying)** — Run `npm run build`, then `npx vite preview --host 0.0.0.0 --port 4173`. On the same Wi‑Fi, open `http://<your-mac-ip>:4173` in Safari on the iPhone.
-- [ ] **iOS PWA icons** — Add PNG icons (192×192 and 512×512) to the web manifest; iOS home-screen installs work better with proper icon assets than SVG alone.
-- [ ] **`preview:lan` script** — Add an npm script for one-command LAN preview during mobile testing.
-- [ ] **iPhone docs in README** — Document Safari-only install steps, folder-import limitation on iOS, and that the Mac/Windows launcher does not run on iPhone.
-- [ ] **Optional: native iOS wrapper** — Evaluate Capacitor (or similar) if App Store / TestFlight distribution is needed later.
+- [x] **Native iOS wrapper** — Capacitor project in `ios/` with Xcode workflow (`npm run ios`).
+- [x] **iOS PWA icons** — PNG icons (192, 512, 180) plus App Store icon (1024).
+- [x] **`preview:lan` script** — `npm run preview:lan` for LAN mobile testing.
+- [x] **iPhone docs in README** — See iOS section above.
 
 ---
 

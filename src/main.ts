@@ -3,7 +3,8 @@ import { createLibraryView } from './views/library';
 import { createReaderView } from './views/reader';
 import { initDebugPanel, onCreditClick } from './components/debug-panel';
 import { logger } from './lib/logger';
-import { registerSW } from 'virtual:pwa-register';
+import { initNativeShell } from './lib/native-shell';
+import { isNativeApp } from './lib/platform';
 
 const app = document.getElementById('app')!;
 let currentView: HTMLElement | null = null;
@@ -46,19 +47,20 @@ function setupFooter() {
   app.appendChild(footer);
 }
 
-function setupPWA() {
-  registerSW({
-    onNeedRefresh() {
-      logger.info('New version available');
-    },
-    onOfflineReady() {
-      logger.info('App ready for offline use');
-    },
-  });
+async function setupPWA() {
+  if (isNativeApp()) return;
+
+  const { setupPWA: registerAppSW } = await import('./lib/pwa');
+  registerAppSW();
 }
 
-logger.info('DeezPDF Reader starting');
-setupFooter();
-initDebugPanel(app);
-setupPWA();
-showLibrary();
+async function boot() {
+  logger.info('DeezPDF Reader starting');
+  setupFooter();
+  initDebugPanel(app);
+  await initNativeShell();
+  await setupPWA();
+  showLibrary();
+}
+
+boot();
