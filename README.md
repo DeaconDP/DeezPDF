@@ -113,6 +113,21 @@ npm start        # Run via launcher
 
 ---
 
+## TODO
+
+- [ ] **iPhone install (recommended path)** — Build and host the PWA, then add to Home Screen in Safari:
+  1. Run `npm run build` to produce the `dist/` folder.
+  2. Deploy `dist/` to static hosting with HTTPS (e.g. [Netlify Drop](https://app.netlify.com/drop), Cloudflare Pages, Vercel, or GitHub Pages).
+  3. On iPhone, open the hosted URL in **Safari** (not Chrome).
+  4. Tap **Share** → **Add to Home Screen** for a standalone app icon.
+- [ ] **iPhone LAN test (before deploying)** — Run `npm run build`, then `npx vite preview --host 0.0.0.0 --port 4173`. On the same Wi‑Fi, open `http://<your-mac-ip>:4173` in Safari on the iPhone.
+- [ ] **iOS PWA icons** — Add PNG icons (192×192 and 512×512) to the web manifest; iOS home-screen installs work better with proper icon assets than SVG alone.
+- [ ] **`preview:lan` script** — Add an npm script for one-command LAN preview during mobile testing.
+- [ ] **iPhone docs in README** — Document Safari-only install steps, folder-import limitation on iOS, and that the Mac/Windows launcher does not run on iPhone.
+- [ ] **Optional: native iOS wrapper** — Evaluate Capacitor (or similar) if App Store / TestFlight distribution is needed later.
+
+---
+
 ## License
 
 MIT — Created by [deac.online](https://deac.online)
