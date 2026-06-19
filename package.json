@@ -1,0 +1,35 @@
+{
+  "name": "deezpdf-reader",
+  "version": "1.0.0",
+  "description": "A cyberpunk-styled PDF reader PWA with local library support",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "start": "node launcher/index.js",
+    "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe"
+  },
+  "author": "deac.online",
+  "license": "MIT",
+  "dependencies": {
+    "dexie": "^4.0.11",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vite-plugin-pwa": "^0.21.1",
+    "workbox-window": "^7.3.0"
+  },
+  "pkg": {
+    "assets": [
+      "package.json",
+      "index.html",
+      "vite.config.ts",
+      "tsconfig.json",
+      "src/**/*",
+      "public/**/*"
+    ]
+  }
+}

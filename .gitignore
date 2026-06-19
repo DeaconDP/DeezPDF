@@ -1,0 +1,11 @@
+node_modules/
+dist/
+logs/
+.deezpdfreader.lock
+.DS_Store
+*.log
+.env
+.env.*
+Thumbs.db
+DeezPDFReader.exe
+*.local
