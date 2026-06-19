@@ -3,31 +3,46 @@ import { PdfRenderer, setupSwipe } from '../lib/pdf-renderer';
 import { formatError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
+import { sym } from '../lib/symbols';
 
 export type ReaderCallbacks = {
   onBack: () => void;
 };
 
-export async function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Promise<HTMLElement> {
+export type ReaderView = {
+  view: HTMLElement;
+  load: () => Promise<void>;
+};
+
+export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): ReaderView {
   const view = document.createElement('div');
   view.className = 'view reader-view';
 
   view.innerHTML = `
     <header class="reader-header">
-      <button class="btn btn-ghost back-btn" aria-label="Back to library">&larr; Library</button>
+      <button class="btn btn-ghost back-btn" aria-label="Back to library">
+        <span class="icon" aria-hidden="true">${sym.back}</span> Library
+      </button>
       <div class="reader-title">
-        <span class="pdf-title">Loading...</span>
-        <span class="page-indicator">Page 1 / 1</span>
+        <span class="pdf-title">Loading…</span>
+        <span class="page-indicator">1 / 1</span>
       </div>
       <div class="reader-nav">
-        <button class="btn btn-ghost prev-btn" aria-label="Previous page">&larr;</button>
-        <button class="btn btn-ghost next-btn" aria-label="Next page">&rarr;</button>
+        <button class="btn btn-ghost prev-btn" aria-label="Previous page">
+          <span class="icon" aria-hidden="true">${sym.prev}</span>
+        </button>
+        <button class="btn btn-ghost next-btn" aria-label="Next page">
+          <span class="icon" aria-hidden="true">${sym.next}</span>
+        </button>
       </div>
     </header>
     <div class="reader-canvas-container">
       <canvas class="reader-canvas"></canvas>
     </div>
-    <div class="swipe-hint">Swipe left/right to turn pages</div>
+    <div class="swipe-hint">
+      <span class="icon" aria-hidden="true">${sym.swipe}</span>
+      Swipe to turn pages
+    </div>
   `;
 
   const canvas = view.querySelector('.reader-canvas') as HTMLCanvasElement;
@@ -38,14 +53,15 @@ export async function createReaderView(pdfId: string, callbacks: ReaderCallbacks
   const nextBtn = view.querySelector('.next-btn') as HTMLButtonElement;
   const canvasContainer = view.querySelector('.reader-canvas-container') as HTMLElement;
 
-  const renderer = new PdfRenderer(canvas);
+  const renderer = new PdfRenderer(canvas, canvasContainer);
   let cleanupSwipe: (() => void) | null = null;
   let cleanupKeydown: (() => void) | null = null;
   let cleanupResize: (() => void) | null = null;
+  let cleanupLayoutObserver: (() => void) | null = null;
 
   renderer.setCallbacks(
     (page, total) => {
-      pageIndicator.textContent = `Page ${page} / ${total}`;
+      pageIndicator.textContent = `${page} / ${total}`;
     },
     async (page, total) => {
       try {
@@ -94,41 +110,56 @@ export async function createReaderView(pdfId: string, callbacks: ReaderCallbacks
   window.addEventListener('resize', onResize);
   cleanupResize = () => window.removeEventListener('resize', onResize);
 
+  const layoutObserver = new ResizeObserver(() => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => renderer.resize(), 50);
+  });
+  layoutObserver.observe(canvasContainer);
+  cleanupLayoutObserver = () => layoutObserver.disconnect();
+
   function destroy() {
     cleanupSwipe?.();
     cleanupKeydown?.();
     cleanupResize?.();
+    cleanupLayoutObserver?.();
     renderer.destroy();
   }
 
   view.addEventListener('remove', destroy);
 
-  const hideLoading = showLoading(view, 'Opening PDF...');
-  try {
-    const meta = await getPdfMeta(pdfId);
-    if (!meta) throw new Error('PDF not found');
+  async function load(): Promise<void> {
+    const hideLoading = showLoading(view, 'Opening PDF...');
+    canvas.classList.remove('rendered');
+    try {
+      const meta = await getPdfMeta(pdfId);
+      if (!meta) throw new Error('PDF not found');
 
-    titleEl.textContent = meta.name;
-    const blob = await getPdfBlob(pdfId);
-    await renderer.load(blob, pdfId, meta.currentPage);
-  } catch (err) {
-    logger.logError('Failed to open PDF', err);
-    view.innerHTML = `
-      <div class="error-state">
-        <p>Failed to open PDF</p>
-        <p class="error-detail">${escapeHtml(formatError(err))}</p>
-        <button class="btn btn-primary back-error-btn">Back to Library</button>
-      </div>
-    `;
-    view.querySelector('.back-error-btn')?.addEventListener('click', () => {
-      destroy();
-      callbacks.onBack();
-    });
-  } finally {
-    hideLoading();
+      titleEl.textContent = meta.name;
+      const blob = await getPdfBlob(pdfId);
+      await renderer.load(blob, pdfId, meta.currentPage);
+      canvas.classList.add('rendered');
+    } catch (err) {
+      logger.logError('Failed to open PDF', err);
+      view.innerHTML = `
+        <div class="error-state">
+          <span class="error-icon icon" aria-hidden="true">${sym.warn}</span>
+          <p>Failed to open PDF</p>
+          <p class="error-detail">${escapeHtml(formatError(err))}</p>
+          <button class="btn btn-primary back-error-btn">
+            <span class="icon" aria-hidden="true">${sym.back}</span> Library
+          </button>
+        </div>
+      `;
+      view.querySelector('.back-error-btn')?.addEventListener('click', () => {
+        destroy();
+        callbacks.onBack();
+      });
+    } finally {
+      hideLoading();
+    }
   }
 
-  return view;
+  return { view, load };
 }
 
 function escapeHtml(text: string): string {

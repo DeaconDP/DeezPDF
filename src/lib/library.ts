@@ -4,6 +4,46 @@ import { logger } from './logger';
 
 export type PdfMeta = Omit<PdfRecord, 'data'>;
 
+export type PdfFilter = 'all' | 'unread' | 'reading' | 'finished';
+
+export type PdfSort =
+  | 'lastOpened-desc'
+  | 'dateAdded-desc'
+  | 'dateAdded-asc'
+  | 'name-asc'
+  | 'name-desc'
+  | 'size-desc'
+  | 'size-asc';
+
+export type LibraryQuery = {
+  query?: string;
+  filter?: PdfFilter;
+  sort?: PdfSort;
+};
+
+const SORT_COMPARATORS: Record<PdfSort, (a: PdfMeta, b: PdfMeta) => number> = {
+  'lastOpened-desc': (a, b) => b.lastOpened - a.lastOpened,
+  'dateAdded-desc': (a, b) => b.dateAdded - a.dateAdded,
+  'dateAdded-asc': (a, b) => a.dateAdded - b.dateAdded,
+  'name-asc': (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  'name-desc': (a, b) => b.name.localeCompare(a.name, undefined, { sensitivity: 'base' }),
+  'size-desc': (a, b) => b.size - a.size,
+  'size-asc': (a, b) => a.size - b.size,
+};
+
+function matchesFilter(pdf: PdfMeta, filter: PdfFilter): boolean {
+  switch (filter) {
+    case 'unread':
+      return pdf.lastOpened === 0;
+    case 'reading':
+      return pdf.lastOpened > 0 && (pdf.totalPages === 0 || pdf.currentPage < pdf.totalPages);
+    case 'finished':
+      return pdf.totalPages > 0 && pdf.currentPage >= pdf.totalPages;
+    default:
+      return true;
+  }
+}
+
 async function fileToRecord(file: File): Promise<PdfRecord> {
   try {
     const data = new Blob([await file.arrayBuffer()], { type: 'application/pdf' });
@@ -50,12 +90,16 @@ export async function addPdfFiles(files: FileList | File[]): Promise<PdfMeta[]> 
   return results;
 }
 
+export function supportsDirectoryPicker(): boolean {
+  return 'showDirectoryPicker' in window;
+}
+
 export async function addPdfFolder(): Promise<PdfMeta[]> {
-  if (!('showDirectoryPicker' in window)) {
+  if (!supportsDirectoryPicker()) {
     throw new AppError(ErrorCodes.LIB_002);
   }
 
-  const dirHandle = await (window as Window & { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
+  const dirHandle = await (window as unknown as Window & { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
   const files: File[] = [];
 
   async function scanDirectory(handle: FileSystemDirectoryHandle) {
@@ -77,15 +121,34 @@ export async function addPdfFolder(): Promise<PdfMeta[]> {
 }
 
 export async function getAllPdfs(): Promise<PdfMeta[]> {
-  const records = await db.pdfs.orderBy('lastOpened').reverse().toArray();
+  const records = await db.pdfs.toArray();
   return records.map(({ data: _, ...meta }) => meta);
 }
 
+export async function queryPdfs({
+  query = '',
+  filter = 'all',
+  sort = 'lastOpened-desc',
+}: LibraryQuery = {}): Promise<PdfMeta[]> {
+  let results = await getAllPdfs();
+
+  const trimmed = query.trim();
+  if (trimmed) {
+    const lower = trimmed.toLowerCase();
+    results = results.filter((p) => p.name.toLowerCase().includes(lower));
+  }
+
+  if (filter !== 'all') {
+    results = results.filter((p) => matchesFilter(p, filter));
+  }
+
+  const compare = SORT_COMPARATORS[sort];
+  return results.sort(compare);
+}
+
+/** @deprecated Use queryPdfs instead */
 export async function searchPdfs(query: string): Promise<PdfMeta[]> {
-  const all = await getAllPdfs();
-  if (!query.trim()) return all;
-  const lower = query.toLowerCase();
-  return all.filter((p) => p.name.toLowerCase().includes(lower));
+  return queryPdfs({ query });
 }
 
 export async function removePdf(id: string): Promise<void> {

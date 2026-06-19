@@ -27,10 +27,11 @@ function showLibrary() {
 }
 
 async function openReader(id: string) {
-  const reader = await createReaderView(id, {
+  const { view, load } = createReaderView(id, {
     onBack: () => showLibrary(),
   });
-  mount(reader);
+  mount(view);
+  await load();
 }
 
 function setupFooter() {

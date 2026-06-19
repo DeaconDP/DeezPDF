@@ -1,5 +1,6 @@
 import { getLibraryStats } from '../lib/library';
 import { logger } from '../lib/logger';
+import { sym } from '../lib/symbols';
 
 let visible = false;
 let panelEl: HTMLElement | null = null;
@@ -17,7 +18,9 @@ function renderPanel(): void {
     panelEl.innerHTML = `
       <div class="debug-header">
         <span>Debug Log</span>
-        <button class="debug-close" aria-label="Close debug panel">&times;</button>
+        <button class="debug-close" aria-label="Close debug panel">
+          <span class="icon" aria-hidden="true">${sym.close}</span>
+        </button>
       </div>
       <div class="debug-stats">
         Library: ${stats.count} PDFs (${formatBytes(stats.totalSize)})
