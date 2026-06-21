@@ -541,8 +541,18 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
   padding: var(--space-md);
+}
+
+.reader-canvas-container.zoomed {
+  display: block;
+  overflow: auto;
+}
+
+.reader-canvas-wrapper {
+  line-height: 0;
 }
 
 .reader-canvas {
@@ -551,6 +561,11 @@ body {
   box-shadow: var(--shadow-panel);
   opacity: 0;
   transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.reader-canvas-container.zoomed .reader-canvas {
+  max-width: none;
+  max-height: none;
 }
 
 .reader-canvas.rendered {
