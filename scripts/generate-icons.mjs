@@ -11,28 +11,17 @@ const splashDir = join(root, 'ios/App/App/Assets.xcassets/Splash.imageset');
 
 const BG = '#080b10';
 const ACCENT = '#00d4e8';
-const ACCENT_SECONDARY = '#c4007a';
 
 function iconSvg(size) {
-  const pad = Math.round(size * 0.12);
-  const inner = size - pad * 2;
   const rx = Math.round(size * 0.08);
-  const fontSize = Math.round(size * 0.34);
-  const labelY = Math.round(size * 0.72);
-  const docW = Math.round(inner * 0.42);
-  const docH = Math.round(inner * 0.52);
-  const docX = Math.round((size - docW) / 2);
-  const docY = Math.round(size * 0.18);
-  const fold = Math.round(docW * 0.28);
+  const border = Math.max(2, Math.round(size * 0.014));
+  const glyphSize = Math.round(size * 0.52);
+  const glyphY = Math.round(size * 0.58);
 
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <rect width="${size}" height="${size}" rx="${rx}" fill="${BG}"/>
-  <rect x="${docX}" y="${docY}" width="${docW}" height="${docH}" rx="${Math.max(2, Math.round(size * 0.02))}" fill="none" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(size * 0.018))}"/>
-  <path d="M${docX + docW - fold} ${docY} L${docX + docW} ${docY + fold} L${docX + docW - fold} ${docY + fold} Z" fill="${ACCENT_SECONDARY}" opacity="0.9"/>
-  <line x1="${docX + Math.round(docW * 0.18)}" y1="${docY + Math.round(docH * 0.35)}" x2="${docX + docW - Math.round(docW * 0.18)}" y2="${docY + Math.round(docH * 0.35)}" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(size * 0.012))}" opacity="0.85"/>
-  <line x1="${docX + Math.round(docW * 0.18)}" y1="${docY + Math.round(docH * 0.52)}" x2="${docX + docW - Math.round(docW * 0.18)}" y2="${docY + Math.round(docH * 0.52)}" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(size * 0.012))}" opacity="0.65"/>
-  <line x1="${docX + Math.round(docW * 0.18)}" y1="${docY + Math.round(docH * 0.69)}" x2="${docX + docW - Math.round(docW * 0.34)}" y2="${docY + Math.round(docH * 0.69)}" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(size * 0.012))}" opacity="0.45"/>
-  <text x="${size / 2}" y="${labelY}" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="700" fill="${ACCENT}">PDF</text>
+  <rect x="${border}" y="${border}" width="${size - border * 2}" height="${size - border * 2}" rx="${Math.max(0, rx - border)}" fill="none" stroke="${ACCENT}" stroke-width="${border}"/>
+  <text x="${size / 2}" y="${glyphY}" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="${glyphSize}" fill="${ACCENT}">¶</text>
 </svg>`);
 }
 
@@ -40,27 +29,22 @@ function splashSvg(size) {
   const logoSize = Math.round(size * 0.22);
   const logoX = Math.round((size - logoSize) / 2);
   const logoY = Math.round((size - logoSize) / 2);
-  const inner = logoSize;
-  const docW = Math.round(inner * 0.42);
-  const docH = Math.round(inner * 0.52);
-  const docX = logoX + Math.round((inner - docW) / 2);
-  const docY = logoY + Math.round(inner * 0.18);
-  const fold = Math.round(docW * 0.28);
-  const fontSize = Math.round(inner * 0.34);
-  const labelY = logoY + Math.round(inner * 0.72);
+  const border = Math.max(2, Math.round(logoSize * 0.014));
+  const glyphSize = Math.round(logoSize * 0.52);
+  const glyphY = logoY + Math.round(logoSize * 0.58);
 
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <rect width="${size}" height="${size}" fill="${BG}"/>
-  <rect x="${docX}" y="${docY}" width="${docW}" height="${docH}" rx="${Math.max(2, Math.round(inner * 0.02))}" fill="none" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(inner * 0.018))}"/>
-  <path d="M${docX + docW - fold} ${docY} L${docX + docW} ${docY + fold} L${docX + docW - fold} ${docY + fold} Z" fill="${ACCENT_SECONDARY}" opacity="0.9"/>
-  <line x1="${docX + Math.round(docW * 0.18)}" y1="${docY + Math.round(docH * 0.35)}" x2="${docX + docW - Math.round(docW * 0.18)}" y2="${docY + Math.round(docH * 0.35)}" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(inner * 0.012))}" opacity="0.85"/>
-  <line x1="${docX + Math.round(docW * 0.18)}" y1="${docY + Math.round(docH * 0.52)}" x2="${docX + docW - Math.round(docW * 0.18)}" y2="${docY + Math.round(docH * 0.52)}" stroke="${ACCENT}" stroke-width="${Math.max(2, Math.round(inner * 0.012))}" opacity="0.65"/>
-  <text x="${logoX + inner / 2}" y="${labelY}" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="700" fill="${ACCENT}">PDF</text>
+  <rect x="${logoX + border}" y="${logoY + border}" width="${logoSize - border * 2}" height="${logoSize - border * 2}" fill="none" stroke="${ACCENT}" stroke-width="${border}"/>
+  <text x="${logoX + logoSize / 2}" y="${glyphY}" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="${glyphSize}" fill="${ACCENT}">¶</text>
 </svg>`);
 }
 
 async function writePng(path, svgBuffer) {
-  await sharp(svgBuffer).png().toFile(path);
+  await sharp(svgBuffer)
+    .flatten({ background: BG })
+    .png({ force: true })
+    .toFile(path);
   console.log(`Wrote ${path}`);
 }
 

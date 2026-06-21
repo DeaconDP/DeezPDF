@@ -83,8 +83,8 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
 
   cleanupSwipe = setupSwipe(
     canvasContainer,
-    () => renderer.prevPage(),
-    () => renderer.nextPage()
+    () => renderer.nextPage(),
+    () => renderer.prevPage()
   );
 
   const onKeydown = (e: KeyboardEvent) => {
