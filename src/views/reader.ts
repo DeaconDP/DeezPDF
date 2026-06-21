@@ -1,5 +1,5 @@
 import { getPdfBlob, getPdfMeta, updateProgress } from '../lib/library';
-import { PdfRenderer, setupSwipe } from '../lib/pdf-renderer';
+import { PdfRenderer, setupSwipe, setupZoomGestures } from '../lib/pdf-renderer';
 import { formatError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
@@ -37,7 +37,9 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
       </div>
     </header>
     <div class="reader-canvas-container">
-      <canvas class="reader-canvas"></canvas>
+      <div class="reader-canvas-wrapper">
+        <canvas class="reader-canvas"></canvas>
+      </div>
     </div>
     <div class="swipe-hint">
       <span class="icon" aria-hidden="true">${sym.swipe}</span>
@@ -52,9 +54,11 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
   const prevBtn = view.querySelector('.prev-btn') as HTMLButtonElement;
   const nextBtn = view.querySelector('.next-btn') as HTMLButtonElement;
   const canvasContainer = view.querySelector('.reader-canvas-container') as HTMLElement;
+  const canvasWrapper = view.querySelector('.reader-canvas-wrapper') as HTMLElement;
 
-  const renderer = new PdfRenderer(canvas, canvasContainer);
+  const renderer = new PdfRenderer(canvas, canvasContainer, canvasWrapper);
   let cleanupSwipe: (() => void) | null = null;
+  let cleanupZoom: (() => void) | null = null;
   let cleanupKeydown: (() => void) | null = null;
   let cleanupResize: (() => void) | null = null;
   let cleanupLayoutObserver: (() => void) | null = null;
@@ -84,7 +88,14 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
   cleanupSwipe = setupSwipe(
     canvasContainer,
     () => renderer.nextPage(),
-    () => renderer.prevPage()
+    () => renderer.prevPage(),
+    { shouldSwipe: () => renderer.getZoom() <= 1 }
+  );
+
+  cleanupZoom = setupZoomGestures(
+    canvasContainer,
+    () => renderer.getZoom(),
+    (zoom, focal) => renderer.setZoom(zoom, focal)
   );
 
   const onKeydown = (e: KeyboardEvent) => {
@@ -119,6 +130,7 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
 
   function destroy() {
     cleanupSwipe?.();
+    cleanupZoom?.();
     cleanupKeydown?.();
     cleanupResize?.();
     cleanupLayoutObserver?.();
