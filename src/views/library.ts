@@ -1,10 +1,13 @@
 import {
   addPdfFiles,
   addPdfFolder,
+  downloadAndAddPdf,
   getAllPdfs,
   queryPdfs,
   removePdf,
+  renamePdf,
   supportsDirectoryPicker,
+  supportsSaveFilePicker,
   type PdfFilter,
   type PdfMeta,
   type PdfSort,
@@ -66,6 +69,10 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
           <span class="icon" aria-hidden="true">${sym.folder}</span>
           Add Folder
         </button>
+        <button class="btn btn-secondary download-btn">
+          <span class="icon" aria-hidden="true">${sym.download}</span>
+          Download URL
+        </button>
         <label class="btn btn-secondary folder-fallback hidden">
           <span class="icon" aria-hidden="true">${sym.folder}</span>
           Add Folder
@@ -100,6 +107,29 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
     </div>
 
     <div class="toast hidden"></div>
+    <div class="download-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="download-dialog-title">
+      <div class="download-dialog-panel">
+        <div class="download-dialog-header">
+          <h2 id="download-dialog-title" class="download-dialog-title">Download PDF</h2>
+          <button class="btn-icon download-close-btn" aria-label="Close download dialog" title="Close">
+            <span class="icon" aria-hidden="true">${sym.close}</span>
+          </button>
+        </div>
+        <p class="download-dialog-hint">Enter a direct link to a PDF file.</p>
+        <label class="download-url-label">
+          <span class="control-text">PDF URL</span>
+          <input type="url" class="download-url-input" placeholder="https://example.com/document.pdf" autocomplete="url" inputmode="url" />
+        </label>
+        <p class="download-save-hint hidden"></p>
+        <div class="download-dialog-actions">
+          <button type="button" class="btn btn-ghost download-cancel-btn">Cancel</button>
+          <button type="button" class="btn btn-primary download-submit-btn">
+            <span class="icon" aria-hidden="true">${sym.download}</span>
+            Download
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="pdf-list"></div>
 
     <div class="empty-state hidden">
@@ -117,6 +147,13 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
   const folderBtn = view.querySelector('.folder-btn') as HTMLButtonElement;
   const folderFallback = view.querySelector('.folder-fallback') as HTMLLabelElement;
   const folderInput = view.querySelector('.folder-input') as HTMLInputElement;
+  const downloadBtn = view.querySelector('.download-btn') as HTMLButtonElement;
+  const downloadDialog = view.querySelector('.download-dialog') as HTMLElement;
+  const downloadUrlInput = view.querySelector('.download-url-input') as HTMLInputElement;
+  const downloadSaveHint = view.querySelector('.download-save-hint') as HTMLElement;
+  const downloadSubmitBtn = view.querySelector('.download-submit-btn') as HTMLButtonElement;
+  const downloadCancelBtn = view.querySelector('.download-cancel-btn') as HTMLButtonElement;
+  const downloadCloseBtn = view.querySelector('.download-close-btn') as HTMLButtonElement;
   const pdfList = view.querySelector('.pdf-list') as HTMLElement;
   const emptyState = view.querySelector('.empty-state') as HTMLElement;
   const emptyMessage = view.querySelector('.empty-message') as HTMLElement;
@@ -134,6 +171,50 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
     toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 4000);
+  }
+
+  function openDownloadDialog() {
+    downloadUrlInput.value = '';
+    downloadSaveHint.classList.add('hidden');
+    if (supportsSaveFilePicker()) {
+      downloadSaveHint.textContent = 'You will choose where to save the file before it is added to your library.';
+      downloadSaveHint.classList.remove('hidden');
+    } else {
+      downloadSaveHint.textContent = 'Save location picker is unavailable here. The PDF will be added to your library only.';
+      downloadSaveHint.classList.remove('hidden');
+    }
+    downloadDialog.classList.remove('hidden');
+    downloadUrlInput.focus();
+  }
+
+  function closeDownloadDialog() {
+    downloadDialog.classList.add('hidden');
+  }
+
+  async function submitDownload() {
+    const url = downloadUrlInput.value.trim();
+    if (!url) {
+      showToast('Enter a PDF URL', true);
+      downloadUrlInput.focus();
+      return;
+    }
+
+    closeDownloadDialog();
+    const hideLoading = showLoading(view, 'Downloading PDF...');
+    try {
+      const { meta, savedToDisk } = await downloadAndAddPdf(url);
+      await refresh();
+      if (savedToDisk) {
+        showToast(`Saved and added "${meta.name}"`);
+      } else {
+        showToast(`Added "${meta.name}" to library`);
+      }
+    } catch (err) {
+      showToast(formatError(err), true);
+      logger.logError('Failed to download PDF', err);
+    } finally {
+      hideLoading();
+    }
   }
 
   function renderList(items: PdfMeta[]) {
@@ -179,13 +260,24 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
             </span>
           </div>
         </div>
-        <button class="btn-icon remove-btn" data-id="${pdf.id}" aria-label="Remove ${escapeHtml(pdf.name)}" title="Remove">
-          <span class="icon" aria-hidden="true">${sym.remove}</span>
-        </button>
+        <div class="pdf-card-actions">
+          <button class="btn-icon rename-btn" data-id="${pdf.id}" aria-label="Rename ${escapeHtml(pdf.name)}" title="Rename">
+            <span class="icon" aria-hidden="true">${sym.edit}</span>
+          </button>
+          <button class="btn-icon remove-btn" data-id="${pdf.id}" aria-label="Remove ${escapeHtml(pdf.name)}" title="Remove">
+            <span class="icon" aria-hidden="true">${sym.remove}</span>
+          </button>
+        </div>
       `;
 
       card.querySelector('.pdf-card-info')?.addEventListener('click', () => {
+        if (card.querySelector('.pdf-name-input')) return;
         callbacks.onOpenPdf(pdf.id);
+      });
+
+      card.querySelector('.rename-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRename(card, pdf);
       });
 
       card.querySelector('.remove-btn')?.addEventListener('click', async (e) => {
@@ -198,6 +290,73 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
 
       pdfList.appendChild(card);
     }
+  }
+
+  function startRename(card: HTMLElement, pdf: PdfMeta) {
+    const nameEl = card.querySelector('.pdf-name') as HTMLElement | null;
+    if (!nameEl || card.querySelector('.pdf-name-input')) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'pdf-name-input';
+    input.value = pdf.name;
+    input.setAttribute('aria-label', `Rename ${pdf.name}`);
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let finished = false;
+
+    async function finish(save: boolean) {
+      if (finished) return;
+      finished = true;
+
+      const span = document.createElement('span');
+      span.className = 'pdf-name';
+
+      if (save) {
+        const nextName = input.value.trim();
+        if (!nextName) {
+          span.textContent = pdf.name;
+          showToast('Name cannot be empty', true);
+        } else if (nextName !== pdf.name) {
+          try {
+            await renamePdf(pdf.id, nextName);
+            span.textContent = nextName;
+            showToast('PDF renamed');
+            await refresh();
+            return;
+          } catch (err) {
+            span.textContent = pdf.name;
+            showToast(formatError(err), true);
+            logger.logError('Failed to rename PDF', err);
+          }
+        } else {
+          span.textContent = pdf.name;
+        }
+      } else {
+        span.textContent = pdf.name;
+      }
+
+      input.replaceWith(span);
+    }
+
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        void finish(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        void finish(false);
+      }
+    });
+
+    input.addEventListener('click', (e) => e.stopPropagation());
+
+    input.addEventListener('blur', () => {
+      void finish(true);
+    });
   }
 
   async function applyQuery() {
@@ -276,6 +435,23 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
     } finally {
       hideLoading();
     }
+  });
+
+  downloadBtn.addEventListener('click', () => openDownloadDialog());
+  downloadCancelBtn.addEventListener('click', () => closeDownloadDialog());
+  downloadCloseBtn.addEventListener('click', () => closeDownloadDialog());
+  downloadSubmitBtn.addEventListener('click', () => void submitDownload());
+  downloadUrlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void submitDownload();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeDownloadDialog();
+    }
+  });
+  downloadDialog.addEventListener('click', (e) => {
+    if (e.target === downloadDialog) closeDownloadDialog();
   });
 
   refresh();

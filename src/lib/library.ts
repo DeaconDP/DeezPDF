@@ -1,6 +1,12 @@
 import { AppError, ErrorCodes } from './errors';
 import { db, generateId, type PdfRecord } from './db';
 import { logger } from './logger';
+import {
+  blobToPdfFile,
+  fetchPdfFromUrl,
+  savePdfToDisk,
+  supportsSaveFilePicker,
+} from './download';
 
 export type PdfMeta = Omit<PdfRecord, 'data'>;
 
@@ -90,6 +96,29 @@ export async function addPdfFiles(files: FileList | File[]): Promise<PdfMeta[]> 
   return results;
 }
 
+export { supportsSaveFilePicker };
+
+export type DownloadPdfResult = {
+  meta: PdfMeta;
+  savedToDisk: boolean;
+};
+
+export async function downloadAndAddPdf(url: string): Promise<DownloadPdfResult> {
+  const { blob, filename } = await fetchPdfFromUrl(url);
+
+  let savedToDisk = false;
+  if (supportsSaveFilePicker()) {
+    savedToDisk = await savePdfToDisk(blob, filename);
+    if (!savedToDisk) {
+      throw new AppError(ErrorCodes.LIB_003, 'Save cancelled');
+    }
+  }
+
+  const file = blobToPdfFile(blob, filename);
+  const meta = await addPdfFile(file);
+  return { meta, savedToDisk };
+}
+
 export function supportsDirectoryPicker(): boolean {
   return 'showDirectoryPicker' in window;
 }
@@ -149,6 +178,26 @@ export async function queryPdfs({
 /** @deprecated Use queryPdfs instead */
 export async function searchPdfs(query: string): Promise<PdfMeta[]> {
   return queryPdfs({ query });
+}
+
+export async function renamePdf(id: string, name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new AppError(ErrorCodes.LIB_001, 'name cannot be empty');
+  }
+
+  const record = await db.pdfs.get(id);
+  if (!record) {
+    throw new AppError(ErrorCodes.LIB_001, `not found: ${id}`);
+  }
+  if (record.name === trimmed) return;
+
+  try {
+    await db.pdfs.update(id, { name: trimmed });
+    logger.info(`Renamed PDF ${id}: ${record.name} → ${trimmed}`);
+  } catch (err) {
+    throw new AppError(ErrorCodes.DB_001, `rename ${id}`);
+  }
 }
 
 export async function removePdf(id: string): Promise<void> {
