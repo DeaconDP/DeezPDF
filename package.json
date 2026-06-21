@@ -11,7 +11,7 @@
     "preview:lan": "vite preview --host 0.0.0.0 --port 4173",
     "icons": "node scripts/generate-icons.mjs",
     "cap:sync": "npm run build:ios && npx cap sync ios",
-    "cap:open": "npx cap open ios",
+    "cap:open": "open ios/App/DeezPDF.xcodeproj",
     "ios": "npm run cap:sync && npm run cap:open",
     "start": "node launcher/index.js",
     "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe"

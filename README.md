@@ -123,7 +123,9 @@ After `npm install`:
 npm run ios
 ```
 
-This builds the app, syncs assets into `ios/`, and opens **`ios/App/App.xcodeproj`** in Xcode.
+This builds the app, syncs assets into `ios/`, and opens **`ios/App/DeezPDF.xcodeproj`** in Xcode.
+
+> **After editing web/TypeScript code**, run `npm run cap:sync` before rebuilding in Xcode. Use `npm run build:ios` (not plain `npm run build`) so assets use relative paths Capacitor needs. `App.xcodeproj` is a symlink to `DeezPDF.xcodeproj` for Capacitor CLI compatibility.
 
 To sync again after web changes without opening Xcode:
 

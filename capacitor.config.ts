@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'DeezPDF Reader',
   webDir: 'dist',
   ios: {
+    scheme: 'DeezPDF',
     contentInset: 'automatic',
     scrollEnabled: false,
     allowsLinkPreview: false,
