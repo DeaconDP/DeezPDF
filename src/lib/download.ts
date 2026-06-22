@@ -1,6 +1,8 @@
 import { AppError, ErrorCodes } from './errors';
 import { logger } from './logger';
 
+const PDF_PROXY_PATH = '/api/pdf-download';
+
 type SaveFilePickerWindow = Window & {
   showSaveFilePicker: (options?: {
     suggestedName?: string;
@@ -11,8 +13,15 @@ type SaveFilePickerWindow = Window & {
   }) => Promise<FileSystemFileHandle>;
 };
 
-function parseUrl(raw: string): URL {
+function normalizeUrlInput(raw: string): string {
   const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function parseUrl(raw: string): URL {
+  const trimmed = normalizeUrlInput(raw);
   if (!trimmed) {
     throw new AppError(ErrorCodes.LIB_003, 'URL is required');
   }
@@ -53,20 +62,46 @@ export function supportsSaveFilePicker(): boolean {
   return 'showSaveFilePicker' in window;
 }
 
+async function fetchViaProxy(url: URL): Promise<Response | null> {
+  try {
+    return await fetch(`${PDF_PROXY_PATH}?url=${encodeURIComponent(url.href)}`);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchPdfResponse(url: URL): Promise<Response> {
+  if (!import.meta.env.DEV) {
+    try {
+      const directResponse = await fetch(url.href);
+      if (directResponse.ok) return directResponse;
+      throw new AppError(ErrorCodes.LIB_003, `HTTP ${directResponse.status}`);
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+    }
+  }
+
+  const proxyResponse = await fetchViaProxy(url);
+  if (proxyResponse?.ok) return proxyResponse;
+
+  const proxyDetail = proxyResponse
+    ? (await proxyResponse.text().catch(() => '')).trim() || `HTTP ${proxyResponse.status}`
+    : null;
+
+  if (proxyDetail) {
+    throw new AppError(ErrorCodes.LIB_003, proxyDetail);
+  }
+
+  throw new AppError(
+    ErrorCodes.LIB_003,
+    `${url.hostname} (blocked by browser CORS policy)`,
+  );
+}
+
 export async function fetchPdfFromUrl(rawUrl: string): Promise<{ blob: Blob; filename: string }> {
   const url = parseUrl(rawUrl);
   const filename = filenameFromUrl(url);
-
-  let response: Response;
-  try {
-    response = await fetch(url.href);
-  } catch (err) {
-    throw new AppError(ErrorCodes.LIB_003, url.hostname);
-  }
-
-  if (!response.ok) {
-    throw new AppError(ErrorCodes.LIB_003, `HTTP ${response.status}`);
-  }
+  const response = await fetchPdfResponse(url);
 
   const blob = await response.blob();
   const buffer = await blob.arrayBuffer();

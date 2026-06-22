@@ -1,4 +1,5 @@
 node_modules/
+/DeezPDF/
 dist/
 logs/
 .deezpdfreader.lock

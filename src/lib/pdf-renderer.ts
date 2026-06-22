@@ -27,10 +27,53 @@ async function waitForContainerSize(container: HTMLElement): Promise<{ width: nu
 
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 4;
+export const MIN_FONT_PX = 6;
+export const MAX_FONT_PX = 96;
+export const DEFAULT_TEXT_FONT_PX = 16;
+const PAGE_PADDING = 32;
+
+function normalizePdfTextLineBreaks(text: string): string {
+  return text
+    .replace(/(?<!\.)[ \t]*\r?\n[ \t]*/g, ' ')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
+
+function textFromContent(
+  content: Awaited<ReturnType<pdfjsLib.PDFPageProxy['getTextContent']>>
+): string {
+  let result = '';
+  for (const item of content.items) {
+    if (!('str' in item)) continue;
+    result += item.str;
+    if ('hasEOL' in item && item.hasEOL) {
+      result += '\n';
+    } else if (!item.str.endsWith('-')) {
+      result += ' ';
+    }
+  }
+  return normalizePdfTextLineBreaks(result);
+}
+
+function computePageDimensions(
+  viewport: pdfjsLib.PageViewport,
+  containerWidth: number,
+  containerHeight: number
+): { baseWidth: number; baseHeight: number; scale: number } {
+  const scaleX = (containerWidth - PAGE_PADDING) / viewport.width;
+  const scaleY = (containerHeight - PAGE_PADDING) / viewport.height;
+  const scale = Math.max(0.1, Math.min(scaleX, scaleY, 2.5));
+  return {
+    baseWidth: Math.floor(viewport.width * scale),
+    baseHeight: Math.floor(viewport.height * scale),
+    scale,
+  };
+}
 
 export class PdfRenderer {
   private doc: pdfjsLib.PDFDocumentProxy | null = null;
   private canvas: HTMLCanvasElement;
+  private textPanel: HTMLElement;
   private container: HTMLElement;
   private wrapper: HTMLElement;
   private ctx: CanvasRenderingContext2D;
@@ -40,13 +83,23 @@ export class PdfRenderer {
   private baseWidth = 0;
   private baseHeight = 0;
   private userZoom = 1;
+  private textMode = false;
+  private fontScale = 1;
+  private baseFitFontSize = 0;
+  private pageText = '';
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private onPageChange?: (page: number, total: number) => void;
   private onSave?: (page: number, total: number) => void;
   private renderGeneration = 0;
 
-  constructor(canvas: HTMLCanvasElement, container: HTMLElement, wrapper: HTMLElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    textPanel: HTMLElement,
+    container: HTMLElement,
+    wrapper: HTMLElement
+  ) {
     this.canvas = canvas;
+    this.textPanel = textPanel;
     this.container = container;
     this.wrapper = wrapper;
     const ctx = canvas.getContext('2d');
@@ -84,6 +137,11 @@ export class PdfRenderer {
   private async renderCurrentPage(): Promise<void> {
     if (!this.doc) return;
 
+    if (this.textMode) {
+      await this.renderTextPage();
+      return;
+    }
+
     const generation = ++this.renderGeneration;
 
     try {
@@ -93,16 +151,13 @@ export class PdfRenderer {
       const { width: containerWidth, height: containerHeight } = await waitForContainerSize(this.container);
 
       const viewport = page.getViewport({ scale: 1 });
-      const padding = 32;
-      const scaleX = (containerWidth - padding) / viewport.width;
-      const scaleY = (containerHeight - padding) / viewport.height;
-      const scale = Math.max(0.1, Math.min(scaleX, scaleY, 2.5));
+      const { baseWidth, baseHeight, scale } = computePageDimensions(viewport, containerWidth, containerHeight);
 
       const outputScale = window.devicePixelRatio || 1;
       const scaledViewport = page.getViewport({ scale: scale * outputScale });
 
-      this.baseWidth = Math.floor(scaledViewport.width / outputScale);
-      this.baseHeight = Math.floor(scaledViewport.height / outputScale);
+      this.baseWidth = baseWidth;
+      this.baseHeight = baseHeight;
 
       this.canvas.width = Math.floor(scaledViewport.width);
       this.canvas.height = Math.floor(scaledViewport.height);
@@ -125,6 +180,51 @@ export class PdfRenderer {
       if (err instanceof AppError) throw err;
       throw new AppError(ErrorCodes.PDF_002, `page ${this.currentPage}`);
     }
+  }
+
+  private async renderTextPage(): Promise<void> {
+    if (!this.doc) return;
+
+    const generation = ++this.renderGeneration;
+
+    try {
+      const page = await this.doc.getPage(this.currentPage);
+      if (generation !== this.renderGeneration) return;
+
+      const { width: containerWidth, height: containerHeight } = await waitForContainerSize(this.container);
+
+      const viewport = page.getViewport({ scale: 1 });
+      const { baseWidth, baseHeight } = computePageDimensions(viewport, containerWidth, containerHeight);
+
+      this.baseWidth = baseWidth;
+      this.baseHeight = baseHeight;
+
+      this.textPanel.style.width = `${this.baseWidth}px`;
+      this.textPanel.style.height = `${this.baseHeight}px`;
+      this.wrapper.style.width = `${this.baseWidth}px`;
+      this.wrapper.style.height = `${this.baseHeight}px`;
+
+      this.container.classList.remove('zoomed');
+      this.container.scrollLeft = 0;
+      this.container.scrollTop = 0;
+
+      const content = await page.getTextContent();
+      if (generation !== this.renderGeneration) return;
+
+      this.pageText = textFromContent(content) || 'No extractable text on this page.';
+      this.baseFitFontSize = DEFAULT_TEXT_FONT_PX;
+      this.textPanel.textContent = this.pageText;
+      this.applyTextFontSize();
+      this.textPanel.scrollTop = 0;
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      throw new AppError(ErrorCodes.PDF_002, `page ${this.currentPage}`);
+    }
+  }
+
+  private applyTextFontSize(): void {
+    if (this.baseFitFontSize <= 0) return;
+    this.textPanel.style.fontSize = `${this.baseFitFontSize * this.fontScale}px`;
   }
 
   async nextPage(): Promise<void> {
@@ -152,10 +252,32 @@ export class PdfRenderer {
   }
 
   getZoom(): number {
-    return this.userZoom;
+    return this.textMode ? MIN_ZOOM : this.userZoom;
+  }
+
+  isTextMode(): boolean {
+    return this.textMode;
+  }
+
+  async setTextMode(enabled: boolean): Promise<void> {
+    if (this.textMode === enabled) return;
+    this.textMode = enabled;
+    this.resetZoom();
+    this.canvas.classList.toggle('rendered', !enabled);
+    this.textPanel.classList.toggle('rendered', enabled);
+    if (this.doc) await this.renderCurrentPage();
+  }
+
+  adjustFontSize(deltaPx: number): void {
+    if (!this.textMode || this.baseFitFontSize <= 0) return;
+    const currentPx = this.baseFitFontSize * this.fontScale;
+    const nextPx = Math.max(MIN_FONT_PX, Math.min(MAX_FONT_PX, currentPx + deltaPx));
+    this.fontScale = nextPx / this.baseFitFontSize;
+    this.textPanel.style.fontSize = `${nextPx}px`;
   }
 
   setZoom(zoom: number, focal?: { clientX: number; clientY: number }): void {
+    if (this.textMode) return;
     const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
     const prevZoom = this.userZoom;
 

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
+import { pdfDownloadProxy } from './vite-pdf-proxy';
 
 const isCapacitorBuild = process.env.VITE_CAPACITOR === 'true';
 const pwaStub = fileURLToPath(new URL('./src/lib/pwa-stub.ts', import.meta.url));
@@ -15,6 +16,7 @@ export default defineConfig({
       : undefined,
   },
   plugins: [
+    pdfDownloadProxy(),
     ...(isCapacitorBuild
       ? []
       : [

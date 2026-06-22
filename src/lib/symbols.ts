@@ -14,4 +14,9 @@ export const sym = {
   close: '✕',
   warn: '⚠',
   swipe: '⇔',
+  text: 'Aa',
+  fontDecrease: '−',
+  fontIncrease: '＋',
+  darkMode: '☾',
+  lightMode: '☀',
 } as const;
