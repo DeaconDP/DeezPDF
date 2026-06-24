@@ -1,4 +1,5 @@
 import { getLibraryStats } from '../lib/library';
+import { readAgentDebugLog } from '../lib/agent-debug';
 import { logger } from '../lib/logger';
 import { sym } from '../lib/symbols';
 
@@ -11,10 +12,28 @@ function renderPanel(): void {
   if (!panelEl) return;
 
   const entries = logger.getEntries();
+  const agentEntries = readAgentDebugLog();
   const statsPromise = getLibraryStats();
 
   statsPromise.then((stats) => {
     if (!panelEl) return;
+    const agentHtml =
+      agentEntries.length === 0
+        ? ''
+        : `<div class="debug-agent">
+            <div class="debug-agent-title">Download trace</div>
+            ${agentEntries
+              .slice(-8)
+              .map((entry) => {
+                const data = entry.data as Record<string, unknown> | undefined;
+                const detail = data ? ` ${JSON.stringify(data)}` : '';
+                return `<div class="debug-entry debug-debug">` +
+                  `<span class="debug-time">${String(entry.location ?? 'agent')}</span> ` +
+                  `${escapeHtml(String(entry.message ?? '') + detail)}` +
+                  `</div>`;
+              })
+              .join('')}
+          </div>`;
     panelEl.innerHTML = `
       <div class="debug-header">
         <span>Debug Log</span>
@@ -25,6 +44,7 @@ function renderPanel(): void {
       <div class="debug-stats">
         Library: ${stats.count} PDFs (${formatBytes(stats.totalSize)})
       </div>
+      ${agentHtml}
       <div class="debug-entries">
         ${entries.length === 0
           ? '<div class="debug-entry debug-info">No log entries yet</div>'

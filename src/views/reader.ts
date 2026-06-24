@@ -20,6 +20,9 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
   view.className = 'view reader-view';
 
   view.innerHTML = `
+    <div class="reader-progress" role="progressbar" aria-label="Reading progress" aria-valuemin="1" aria-valuenow="1" aria-valuemax="1" hidden>
+      <div class="reader-progress-fill"></div>
+    </div>
     <header class="reader-header">
       <button class="btn-icon back-btn" aria-label="Back to library">
         <span class="icon" aria-hidden="true">${sym.back}</span>
@@ -64,6 +67,8 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
   const textPanel = view.querySelector('.reader-text-panel') as HTMLElement;
   const titleEl = view.querySelector('.pdf-title') as HTMLElement;
   const pageIndicator = view.querySelector('.page-indicator') as HTMLElement;
+  const progressBar = view.querySelector('.reader-progress') as HTMLElement;
+  const progressFill = view.querySelector('.reader-progress-fill') as HTMLElement;
   const backBtn = view.querySelector('.back-btn') as HTMLButtonElement;
   const textModeBtn = view.querySelector('.text-mode-btn') as HTMLButtonElement;
   const fontSizeControls = view.querySelector('.font-size-controls') as HTMLElement;
@@ -109,9 +114,21 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
 
   applyTextTheme(textTheme);
 
+  function updatePageProgress(page: number, total: number): void {
+    pageIndicator.textContent = `${page} / ${total}`;
+    if (total > 0) {
+      progressFill.style.width = `${(page / total) * 100}%`;
+      progressBar.setAttribute('aria-valuenow', String(page));
+      progressBar.setAttribute('aria-valuemax', String(total));
+      progressBar.hidden = false;
+    } else {
+      progressBar.hidden = true;
+    }
+  }
+
   renderer.setCallbacks(
     (page, total) => {
-      pageIndicator.textContent = `${page} / ${total}`;
+      updatePageProgress(page, total);
     },
     async (page, total) => {
       try {

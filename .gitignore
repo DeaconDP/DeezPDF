@@ -1,6 +1,7 @@
 node_modules/
 /DeezPDF/
 dist/
+build/
 logs/
 .deezpdfreader.lock
 .DS_Store

@@ -100,6 +100,8 @@ npm run build:ios    # Production build for Capacitor iOS
 npm run cap:sync     # Build + copy web assets into ios/
 npm run cap:open     # Open the Xcode project
 npm run ios          # Sync and open Xcode (one command)
+npm run ios:archive  # Sync + Release archive (build/DeezPDF.xcarchive)
+npm run ios:export   # Export App Store IPA from archive (build/export/)
 npm start            # Run via launcher
 ```
 
@@ -142,10 +144,22 @@ npm run cap:sync
 
 ### Upload to App Store / TestFlight
 
-1. In Xcode, set **Version** and **Build** under the App target (General tab).
-2. Choose **Any iOS Device** as the run destination.
-3. **Product → Archive**, then **Distribute App**.
-4. Follow the prompts for TestFlight or App Store Connect.
+1. Sync the latest web build: `npm run ios:archive` (or `npm run cap:sync` before archiving in Xcode).
+2. In Xcode, set **Version** (`1.0`) and **Build** (`1`) under the App target (General tab) — bump **Build** for each upload.
+3. Choose **Any iOS Device** as the run destination.
+4. **Product → Archive**, then **Distribute App** → **App Store Connect** → **Upload**.
+5. In [App Store Connect](https://appstoreconnect.apple.com), add metadata, screenshots, and submit for review.
+
+CLI alternative after archiving:
+
+```bash
+npm run ios:archive   # creates build/DeezPDF.xcarchive
+npm run ios:export    # creates build/export/*.ipa — upload via Transporter or Organizer
+```
+
+> If `xcodebuild` fails with “requires Xcode”, point the active developer directory at the full app:  
+> `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`  
+> The archive scripts also set `DEVELOPER_DIR` automatically when Xcode is installed.
 
 Export compliance is preconfigured (`ITSAppUsesNonExemptEncryption = false`) because the app uses only standard HTTPS and local storage.
 

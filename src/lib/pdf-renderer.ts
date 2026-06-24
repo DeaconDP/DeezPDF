@@ -193,16 +193,13 @@ export class PdfRenderer {
 
       const { width: containerWidth, height: containerHeight } = await waitForContainerSize(this.container);
 
-      const viewport = page.getViewport({ scale: 1 });
-      const { baseWidth, baseHeight } = computePageDimensions(viewport, containerWidth, containerHeight);
+      this.baseWidth = containerWidth;
+      this.baseHeight = containerHeight;
 
-      this.baseWidth = baseWidth;
-      this.baseHeight = baseHeight;
-
-      this.textPanel.style.width = `${this.baseWidth}px`;
-      this.textPanel.style.height = `${this.baseHeight}px`;
-      this.wrapper.style.width = `${this.baseWidth}px`;
-      this.wrapper.style.height = `${this.baseHeight}px`;
+      this.textPanel.style.width = '';
+      this.textPanel.style.height = '';
+      this.wrapper.style.width = '';
+      this.wrapper.style.height = '';
 
       this.container.classList.remove('zoomed');
       this.container.scrollLeft = 0;

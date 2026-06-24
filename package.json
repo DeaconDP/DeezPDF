@@ -13,6 +13,8 @@
     "cap:sync": "npm run build:ios && npx cap sync ios",
     "cap:open": "open ios/App/DeezPDF.xcodeproj",
     "ios": "npm run cap:sync && npm run cap:open",
+    "ios:archive": "bash scripts/ios-archive.sh",
+    "ios:export": "bash scripts/ios-export.sh",
     "start": "node launcher/index.js",
     "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe"
   },

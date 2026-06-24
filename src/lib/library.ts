@@ -1,3 +1,4 @@
+import { agentDebugLog } from './agent-debug';
 import { AppError, ErrorCodes } from './errors';
 import { db, generateId, type PdfRecord } from './db';
 import { logger } from './logger';
@@ -7,6 +8,7 @@ import {
   savePdfToDisk,
   supportsSaveFilePicker,
 } from './download';
+import { isNativeApp } from './platform';
 
 export type PdfMeta = Omit<PdfRecord, 'data'>;
 
@@ -104,11 +106,28 @@ export type DownloadPdfResult = {
 };
 
 export async function downloadAndAddPdf(url: string): Promise<DownloadPdfResult> {
+  agentDebugLog(
+    'library.ts:downloadAndAddPdf:entry',
+    'downloadAndAddPdf start',
+    {
+      url,
+      hasSavePicker: supportsSaveFilePicker(),
+      isDev: import.meta.env.DEV,
+      isNative: isNativeApp(),
+    },
+    'D',
+  );
   const { blob, filename } = await fetchPdfFromUrl(url);
 
   let savedToDisk = false;
   if (supportsSaveFilePicker()) {
     savedToDisk = await savePdfToDisk(blob, filename);
+    agentDebugLog(
+      'library.ts:downloadAndAddPdf:save',
+      'save picker result',
+      { savedToDisk, filename, blobSize: blob.size },
+      'D',
+    );
     if (!savedToDisk) {
       throw new AppError(ErrorCodes.LIB_003, 'Save cancelled');
     }
