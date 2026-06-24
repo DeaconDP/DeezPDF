@@ -30,7 +30,7 @@ export const MAX_ZOOM = 4;
 export const MIN_FONT_PX = 6;
 export const MAX_FONT_PX = 96;
 export const DEFAULT_TEXT_FONT_PX = 16;
-const PAGE_PADDING = 32;
+const PAGE_PADDING = 8;
 
 function normalizePdfTextLineBreaks(text: string): string {
   return text
@@ -268,6 +268,19 @@ export class PdfRenderer {
     if (this.doc) await this.renderCurrentPage();
   }
 
+  getFontScale(): number {
+    return this.fontScale;
+  }
+
+  setFontScale(scale: number): void {
+    const minScale = MIN_FONT_PX / DEFAULT_TEXT_FONT_PX;
+    const maxScale = MAX_FONT_PX / DEFAULT_TEXT_FONT_PX;
+    this.fontScale = Number.isFinite(scale)
+      ? Math.max(minScale, Math.min(maxScale, scale))
+      : 1;
+    this.applyTextFontSize();
+  }
+
   adjustFontSize(deltaPx: number): void {
     if (!this.textMode || this.baseFitFontSize <= 0) return;
     const currentPx = this.baseFitFontSize * this.fontScale;
@@ -338,7 +351,11 @@ export class PdfRenderer {
 
   destroy(): void {
     this.renderGeneration++;
-    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+      this.onSave?.(this.currentPage, this.totalPages);
+    }
     if (this.doc) {
       this.doc.destroy();
       this.doc = null;

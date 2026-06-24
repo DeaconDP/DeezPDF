@@ -2,7 +2,7 @@
 
 A cyberpunk-styled PDF reader with a local library. Read PDFs page-by-page like a Kindle, with swipe navigation and automatic progress saving. All your PDFs stay on your device — nothing is uploaded anywhere.
 
-**Created by [deac.online](https://deac.online)**
+**Created by [deac.online](https://deac.online) @ [worldbuild.io](https://worldbuild.io)**
 
 ---
 
@@ -82,7 +82,7 @@ Server logs are written to **`logs/app.log`** in the project folder.
 
 ### Debug panel
 
-In the app, triple-click **"Created by deac.online"** in the footer, or press **Ctrl+Shift+D**, to open the debug log panel.
+In the app, triple-click the footer credit, or press **Ctrl+Shift+D**, to open the debug log panel.
 
 ### Folder import not working
 
@@ -187,4 +187,4 @@ Export compliance is preconfigured (`ITSAppUsesNonExemptEncryption = false`) bec
 
 ## License
 
-MIT — Created by [deac.online](https://deac.online)
+MIT — Created by [deac.online](https://deac.online) @ [worldbuild.io](https://worldbuild.io)

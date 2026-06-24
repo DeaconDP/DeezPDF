@@ -2,6 +2,7 @@ import { getPdfBlob, getPdfMeta, updateProgress } from '../lib/library';
 import { PdfRenderer, setupSwipe, setupZoomGestures } from '../lib/pdf-renderer';
 import { formatError } from '../lib/errors';
 import { logger } from '../lib/logger';
+import { loadReaderPrefs, saveReaderPrefs, type TextTheme } from '../lib/reader-prefs';
 import { showLoading } from '../components/loading';
 import { sym } from '../lib/symbols';
 
@@ -14,48 +15,35 @@ export type ReaderView = {
   load: () => Promise<void>;
 };
 
-type TextTheme = 'light' | 'dark';
-
-const TEXT_THEME_KEY = 'deezpdf-text-theme';
-
-function getStoredTextTheme(): TextTheme {
-  return localStorage.getItem(TEXT_THEME_KEY) === 'dark' ? 'dark' : 'light';
-}
-
 export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): ReaderView {
   const view = document.createElement('div');
   view.className = 'view reader-view';
 
   view.innerHTML = `
     <header class="reader-header">
-      <button class="btn btn-ghost back-btn" aria-label="Back to library">
-        <span class="icon" aria-hidden="true">${sym.back}</span> Library
+      <button class="btn-icon back-btn" aria-label="Back to library">
+        <span class="icon" aria-hidden="true">${sym.back}</span>
       </button>
-      <div class="reader-title">
-        <span class="pdf-title">Loading…</span>
-        <span class="page-indicator">1 / 1</span>
-      </div>
-      <div class="reader-tools">
-        <button class="btn btn-ghost text-mode-btn" aria-pressed="false" aria-label="Text mode">
+      <span class="page-indicator" aria-live="polite">1 / 1</span>
+      <div class="reader-toolbar">
+        <button class="btn-icon text-mode-btn" aria-pressed="false" aria-label="Text mode" title="Text mode">
           <span class="icon" aria-hidden="true">${sym.text}</span>
         </button>
         <div class="font-size-controls" hidden>
-          <button class="btn btn-ghost font-decrease-btn" aria-label="Decrease font size">
+          <button class="btn-icon font-decrease-btn" aria-label="Decrease font size" title="Smaller text">
             <span class="icon" aria-hidden="true">${sym.fontDecrease}</span>
           </button>
-          <button class="btn btn-ghost font-increase-btn" aria-label="Increase font size">
+          <button class="btn-icon font-increase-btn" aria-label="Increase font size" title="Larger text">
             <span class="icon" aria-hidden="true">${sym.fontIncrease}</span>
           </button>
         </div>
-        <button class="btn btn-ghost text-theme-btn" hidden aria-pressed="false" aria-label="Dark mode">
+        <button class="btn-icon text-theme-btn" hidden aria-pressed="false" aria-label="Dark mode" title="Dark mode">
           <span class="icon text-theme-icon" aria-hidden="true">${sym.darkMode}</span>
         </button>
-      </div>
-      <div class="reader-nav">
-        <button class="btn btn-ghost prev-btn" aria-label="Previous page">
+        <button class="btn-icon prev-btn" aria-label="Previous page" title="Previous page">
           <span class="icon" aria-hidden="true">${sym.prev}</span>
         </button>
-        <button class="btn btn-ghost next-btn" aria-label="Next page">
+        <button class="btn-icon next-btn" aria-label="Next page" title="Next page">
           <span class="icon" aria-hidden="true">${sym.next}</span>
         </button>
       </div>
@@ -66,10 +54,10 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
         <div class="reader-text-panel" hidden aria-live="polite"></div>
       </div>
     </div>
-    <div class="swipe-hint">
-      <span class="icon" aria-hidden="true">${sym.swipe}</span>
-      Swipe to turn pages
+    <div class="swipe-hint" aria-hidden="true">
+      <span class="icon">${sym.swipe}</span>
     </div>
+    <span class="visually-hidden pdf-title">Loading…</span>
   `;
 
   const canvas = view.querySelector('.reader-canvas') as HTMLCanvasElement;
@@ -89,12 +77,19 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
   const canvasWrapper = view.querySelector('.reader-canvas-wrapper') as HTMLElement;
 
   const renderer = new PdfRenderer(canvas, textPanel, canvasContainer, canvasWrapper);
-  let textTheme: TextTheme = getStoredTextTheme();
+  const previousTitle = document.title;
+  let prefs = loadReaderPrefs();
+  let textTheme: TextTheme = prefs.textTheme;
   let cleanupSwipe: (() => void) | null = null;
   let cleanupZoom: (() => void) | null = null;
   let cleanupKeydown: (() => void) | null = null;
   let cleanupResize: (() => void) | null = null;
   let cleanupLayoutObserver: (() => void) | null = null;
+
+  function persistPrefs(updates: Partial<typeof prefs>): void {
+    prefs = { ...prefs, ...updates };
+    saveReaderPrefs(prefs);
+  }
 
   function applyTextTheme(theme: TextTheme): void {
     textTheme = theme;
@@ -102,9 +97,14 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
     textPanel.classList.toggle('text-theme-light', theme === 'light');
     textThemeBtn.setAttribute('aria-pressed', String(theme === 'dark'));
     textThemeBtn.setAttribute('aria-label', theme === 'dark' ? 'Light mode' : 'Dark mode');
+    textThemeBtn.setAttribute('title', theme === 'dark' ? 'Light mode' : 'Dark mode');
     textThemeBtn.classList.toggle('active', theme === 'dark');
     textThemeIcon.textContent = theme === 'dark' ? sym.lightMode : sym.darkMode;
-    localStorage.setItem(TEXT_THEME_KEY, theme);
+    persistPrefs({ textTheme: theme });
+  }
+
+  function saveFontScale(): void {
+    persistPrefs({ fontScale: renderer.getFontScale() });
   }
 
   applyTextTheme(textTheme);
@@ -145,20 +145,30 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
     const next = !renderer.isTextMode();
     await renderer.setTextMode(next);
     updateTextModeUi(next);
+    persistPrefs({ textMode: next });
   });
 
   textThemeBtn.addEventListener('click', () => {
     applyTextTheme(textTheme === 'dark' ? 'light' : 'dark');
   });
 
-  fontDecreaseBtn.addEventListener('click', () => renderer.adjustFontSize(-1));
-  fontIncreaseBtn.addEventListener('click', () => renderer.adjustFontSize(1));
+  fontDecreaseBtn.addEventListener('click', () => {
+    renderer.adjustFontSize(-1);
+    saveFontScale();
+  });
+  fontIncreaseBtn.addEventListener('click', () => {
+    renderer.adjustFontSize(1);
+    saveFontScale();
+  });
 
   const onTextFontWheel = (e: WheelEvent) => {
     if (!renderer.isTextMode() || !e.ctrlKey) return;
     e.preventDefault();
     const step = Math.max(-3, Math.min(3, Math.round(-e.deltaY / 15)));
-    if (step !== 0) renderer.adjustFontSize(step);
+    if (step !== 0) {
+      renderer.adjustFontSize(step);
+      saveFontScale();
+    }
   };
   canvasContainer.addEventListener('wheel', onTextFontWheel, { passive: false });
 
@@ -209,6 +219,7 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
   cleanupLayoutObserver = () => layoutObserver.disconnect();
 
   function destroy() {
+    document.title = previousTitle;
     cleanupSwipe?.();
     cleanupZoom?.();
     cleanupKeydown?.();
@@ -229,8 +240,14 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
       if (!meta) throw new Error('PDF not found');
 
       titleEl.textContent = meta.name;
+      document.title = `${meta.name} — DeezPDF`;
       const blob = await getPdfBlob(pdfId);
       await renderer.load(blob, pdfId, meta.currentPage);
+      renderer.setFontScale(prefs.fontScale);
+      if (prefs.textMode) {
+        await renderer.setTextMode(true);
+        updateTextModeUi(true);
+      }
       if (renderer.isTextMode()) {
         textPanel.classList.add('rendered');
       } else {
@@ -243,8 +260,8 @@ export function createReaderView(pdfId: string, callbacks: ReaderCallbacks): Rea
           <span class="error-icon icon" aria-hidden="true">${sym.warn}</span>
           <p>Failed to open PDF</p>
           <p class="error-detail">${escapeHtml(formatError(err))}</p>
-          <button class="btn btn-primary back-error-btn">
-            <span class="icon" aria-hidden="true">${sym.back}</span> Library
+          <button class="btn-icon back-error-btn" aria-label="Back to library" title="Back to library">
+            <span class="icon" aria-hidden="true">${sym.back}</span>
           </button>
         </div>
       `;

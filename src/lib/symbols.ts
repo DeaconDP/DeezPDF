@@ -1,6 +1,6 @@
 /** Monochrome Unicode symbols — widely supported across platforms */
 export const sym = {
-  brand: '📚',
+  brand: 'ℵ',
   search: '⌕',
   add: '＋',
   folder: '▤',

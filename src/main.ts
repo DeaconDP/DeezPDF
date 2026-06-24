@@ -14,6 +14,7 @@ function mount(view: HTMLElement) {
     currentView.remove();
   }
   currentView = view;
+  app.classList.toggle('reader-active', view.classList.contains('reader-view'));
   app.insertBefore(view, app.querySelector('.app-footer') ?? null);
 }
 
@@ -38,12 +39,17 @@ function setupFooter() {
   const footer = document.createElement('footer');
   footer.className = 'app-footer';
   footer.innerHTML = `
-    <a href="https://deac.online" target="_blank" rel="noopener" class="credit-link">
-      Created by deac.online
-    </a>
+    <span class="credit">
+      Created by
+      <a href="https://deac.online" target="_blank" rel="noopener" class="credit-link">deac.online</a>
+      @
+      <a href="https://worldbuild.io" target="_blank" rel="noopener" class="credit-link">worldbuild.io</a>
+    </span>
   `;
-  footer.querySelector('.credit-link')?.addEventListener('click', () => {
-    onCreditClick();
+  footer.querySelectorAll('.credit-link').forEach((link) => {
+    link.addEventListener('click', () => {
+      onCreditClick();
+    });
   });
   app.appendChild(footer);
 }
