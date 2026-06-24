@@ -9,19 +9,15 @@ const publicDir = join(root, 'public');
 const appIconDir = join(root, 'ios/App/App/Assets.xcassets/AppIcon.appiconset');
 const splashDir = join(root, 'ios/App/App/Assets.xcassets/Splash.imageset');
 
-const BG = '#080b10';
-const ACCENT = '#00d4e8';
+const BG = '#000000';
+const GLYPH = '#ffffff';
 
 function iconSvg(size) {
-  const rx = Math.round(size * 0.08);
-  const border = Math.max(2, Math.round(size * 0.014));
   const glyphSize = Math.round(size * 0.52);
-  const glyphY = Math.round(size * 0.58);
 
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${rx}" fill="${BG}"/>
-  <rect x="${border}" y="${border}" width="${size - border * 2}" height="${size - border * 2}" rx="${Math.max(0, rx - border)}" fill="none" stroke="${ACCENT}" stroke-width="${border}"/>
-  <text x="${size / 2}" y="${glyphY}" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="${glyphSize}" fill="${ACCENT}">¶</text>
+  <rect width="${size}" height="${size}" fill="${BG}"/>
+  <text x="${size / 2}" y="${size / 2}" text-anchor="middle" dominant-baseline="central" font-family="Georgia, Times New Roman, serif" font-size="${glyphSize}" fill="${GLYPH}">ℵ</text>
 </svg>`);
 }
 
@@ -29,14 +25,11 @@ function splashSvg(size) {
   const logoSize = Math.round(size * 0.22);
   const logoX = Math.round((size - logoSize) / 2);
   const logoY = Math.round((size - logoSize) / 2);
-  const border = Math.max(2, Math.round(logoSize * 0.014));
   const glyphSize = Math.round(logoSize * 0.52);
-  const glyphY = logoY + Math.round(logoSize * 0.58);
 
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <rect width="${size}" height="${size}" fill="${BG}"/>
-  <rect x="${logoX + border}" y="${logoY + border}" width="${logoSize - border * 2}" height="${logoSize - border * 2}" fill="none" stroke="${ACCENT}" stroke-width="${border}"/>
-  <text x="${logoX + logoSize / 2}" y="${glyphY}" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="${glyphSize}" fill="${ACCENT}">¶</text>
+  <text x="${logoX + logoSize / 2}" y="${logoY + logoSize / 2}" text-anchor="middle" dominant-baseline="central" font-family="Georgia, Times New Roman, serif" font-size="${glyphSize}" fill="${GLYPH}">ℵ</text>
 </svg>`);
 }
 
