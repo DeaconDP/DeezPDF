@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
 import { pdfDownloadProxy } from './vite-pdf-proxy';
+import { pdfSearchProxy } from './vite-pdf-search';
 
 const isCapacitorBuild = process.env.VITE_CAPACITOR === 'true';
 const pwaStub = fileURLToPath(new URL('./src/lib/pwa-stub.ts', import.meta.url));
@@ -17,6 +18,7 @@ export default defineConfig({
   },
   plugins: [
     pdfDownloadProxy(),
+    pdfSearchProxy(),
     ...(isCapacitorBuild
       ? []
       : [
@@ -27,8 +29,8 @@ export default defineConfig({
               name: 'DeezPDF Reader',
               short_name: 'DeezPDF',
               description: 'A cyberpunk PDF reader with local library support',
-              theme_color: '#080b10',
-              background_color: '#080b10',
+              theme_color: '#060810',
+              background_color: '#060810',
               display: 'standalone',
               start_url: '/',
               icons: [

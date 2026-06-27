@@ -37,9 +37,19 @@ No terminal knowledge required.
 
 - **Add PDF** — pick one or more PDF files from your computer.
 - **Add Folder** — import all PDFs from a folder (works best in Chrome or Edge).
+- **Lookup** — search online for PDFs by book title, author, or topic; preview results or add them to your library.
+- **Download URL** — add a PDF from a direct link.
 - **Search** — type in the search box to filter your library by filename.
 - **Open** — click a PDF in the list to start reading.
 - **Remove** — click the × button to remove a PDF from your library.
+
+### Lookup
+
+- **Search** — enter a book title, author name, or topic and tap Search.
+- **Filter** — narrow results to Internet Archive, Project Gutenberg, or web sources.
+- **Preview** — read a result before saving it; your reading position is not saved until you add it to the library.
+- **Add** — download the PDF and store it in your local library.
+- Only download PDFs you have the right to use.
 
 ### Reader
 
@@ -57,8 +67,8 @@ In Chrome or Edge, click the install icon in the address bar to add DeezPDF Read
 ## Privacy
 
 - All PDFs are stored locally in your browser (IndexedDB).
-- No data is sent to any server.
-- No accounts, API keys, or tracking.
+- **Lookup** sends search terms to Internet Archive, Project Gutenberg (Gutendex), and optionally a web search service to find PDF links. When you preview or add a result, the PDF is downloaded from that link’s host (same as **Download URL**).
+- No accounts, tracking, or upload of your library contents.
 
 ---
 
@@ -72,6 +82,11 @@ In Chrome or Edge, click the install icon in the address bar to add DeezPDF Read
 | ERR-LCH-002 | Could not start the local server — try closing other apps using port 5173 |
 | ERR-LIB-001 | Failed to read a PDF file |
 | ERR-LIB-002 | Folder picker not supported — use "Add PDF" instead, or switch to Chrome/Edge |
+| ERR-LIB-003 | Failed to download PDF from URL |
+| ERR-LIB-004 | Save location picker is not supported in this browser |
+| ERR-LKP-001 | PDF lookup search failed |
+| ERR-LKP-002 | No PDFs found for that search |
+| ERR-LKP-003 | Failed to load PDF preview |
 | ERR-PDF-001 | Failed to load or parse a PDF |
 | ERR-PDF-002 | Failed to render a page |
 | ERR-DB-001 | Failed to save data locally |
@@ -102,7 +117,21 @@ npm run cap:open     # Open the Xcode project
 npm run ios          # Sync and open Xcode (one command)
 npm run ios:archive  # Sync + Release archive (build/DeezPDF.xcarchive)
 npm run ios:export   # Export App Store IPA from archive (build/export/)
+npm run preview:lan  # LAN preview for mobile testing
 npm start            # Run via launcher
+```
+
+### PDF Lookup (developers)
+
+**Archival search** (Internet Archive + Project Gutenberg) works in dev, PWA, and iOS without extra setup.
+
+**Web search** uses a Vite dev proxy at `/api/pdf-search` backed by the [Brave Search API](https://brave.com/search/api/). Set `BRAVE_SEARCH_API_KEY` in your environment when running `npm run dev` or `npm run preview`.
+
+For production builds (PWA or Capacitor), deploy the same search endpoint and set `VITE_PDF_SEARCH_URL` to its URL at build time. If unset, the app tries `https://deac.online/api/pdf-search` and falls back to archival sources when web search is unavailable.
+
+```bash
+export BRAVE_SEARCH_API_KEY=your_key_here
+npm run dev
 ```
 
 ---
@@ -178,6 +207,7 @@ Export compliance is preconfigured (`ITSAppUsesNonExemptEncryption = false`) bec
 |---------|-------------|--------|---------|---------|
 | Add PDF | Yes | Yes | Yes | Yes |
 | Add Folder | Yes | No | No | No |
+| PDF Lookup | Yes | Yes | Yes | Yes |
 | Swipe navigation | Yes | Yes | Yes | Yes |
 | Offline reading | Yes | Yes | Yes | Yes |
 | One-click launcher | Windows/Mac | Mac | — | — |

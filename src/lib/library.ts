@@ -5,9 +5,12 @@ import { logger } from './logger';
 import {
   blobToPdfFile,
   fetchPdfFromUrl,
+  filenameFromUrl,
   savePdfToDisk,
   supportsSaveFilePicker,
 } from './download';
+import { getCachedPreviewBlob } from './lookup/preview-cache';
+import type { LookupResult } from './lookup/types';
 import { isNativeApp } from './platform';
 
 export type PdfMeta = Omit<PdfRecord, 'data'>;
@@ -104,6 +107,30 @@ export type DownloadPdfResult = {
   meta: PdfMeta;
   savedToDisk: boolean;
 };
+
+export async function addPdfBlobToLibrary(blob: Blob, filename: string): Promise<PdfMeta> {
+  const file = blobToPdfFile(blob, filename);
+  return addPdfFile(file);
+}
+
+function suggestedFilenameForLookup(result: LookupResult): string {
+  try {
+    return filenameFromUrl(new URL(result.pdfUrl));
+  } catch {
+    const base = result.title.replace(/[<>:"/\\|?*]/g, '').trim() || 'document';
+    return base.toLowerCase().endsWith('.pdf') ? base : `${base}.pdf`;
+  }
+}
+
+export async function addLookupResultToLibrary(result: LookupResult): Promise<PdfMeta> {
+  const cached = getCachedPreviewBlob(result.id);
+  if (cached) {
+    return addPdfBlobToLibrary(cached, suggestedFilenameForLookup(result));
+  }
+
+  const { blob, filename } = await fetchPdfFromUrl(result.pdfUrl);
+  return addPdfBlobToLibrary(blob, filename);
+}
 
 export async function downloadAndAddPdf(url: string): Promise<DownloadPdfResult> {
   agentDebugLog(

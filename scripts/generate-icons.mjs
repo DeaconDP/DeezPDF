@@ -9,8 +9,8 @@ const publicDir = join(root, 'public');
 const appIconDir = join(root, 'ios/App/App/Assets.xcassets/AppIcon.appiconset');
 const splashDir = join(root, 'ios/App/App/Assets.xcassets/Splash.imageset');
 
-const BG = '#000000';
-const GLYPH = '#ffffff';
+const BG = '#060810';
+const GLYPH = '#00e5ff';
 
 function iconSvg(size) {
   const glyphSize = Math.round(size * 0.52);

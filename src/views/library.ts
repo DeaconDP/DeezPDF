@@ -18,12 +18,22 @@ import { logger } from '../lib/logger';
 import { isIOS } from '../lib/platform';
 import { showLoading } from '../components/loading';
 import { sym } from '../lib/symbols';
+import { createLookupPanel } from './lookup';
+import type { LookupResult } from '../lib/lookup/types';
+
+export type LibraryTab = 'library' | 'find';
 
 export type LibraryCallbacks = {
   onOpenPdf: (id: string) => void;
+  onPreview: (result: LookupResult, blob: Blob) => void;
+};
+
+export type LibraryOptions = {
+  initialTab?: LibraryTab;
 };
 
 const PREFS_KEY = 'deezpdf-library-prefs';
+const TAB_KEY = 'deezpdf-library-tab';
 
 type LibraryPrefs = {
   filter: PdfFilter;
@@ -44,68 +54,129 @@ function savePrefs(prefs: LibraryPrefs) {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
-export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
+function loadTab(): LibraryTab {
+  try {
+    const raw = localStorage.getItem(TAB_KEY);
+    if (raw === 'library' || raw === 'find') return raw;
+  } catch {
+    /* ignore */
+  }
+  return 'library';
+}
+
+function saveTab(tab: LibraryTab) {
+  localStorage.setItem(TAB_KEY, tab);
+}
+
+export function createLibraryView(
+  callbacks: LibraryCallbacks,
+  options?: LibraryOptions,
+): HTMLElement {
   const view = document.createElement('div');
-  view.className = 'view library-view';
+  view.className = 'view library-view app-shell';
 
   view.innerHTML = `
-    <header class="header">
-      <div class="brand-icon icon" aria-hidden="true">${sym.brand}</div>
-      <h1 class="logo">Deez<span class="accent">PDF</span></h1>
-      <p class="tagline">Your local PDF library</p>
+    <header class="library-shell-header">
+      <div class="library-brand">
+        <div class="brand-mark brand-mark-compact">
+          <div class="brand-icon icon icon-glyph" aria-hidden="true">${sym.brand}</div>
+        </div>
+        <div class="library-brand-text">
+          <h1 class="logo logo-compact">Deez<span class="accent">PDF</span></h1>
+        </div>
+      </div>
+      <div class="segmented-control" role="tablist" aria-label="Library sections">
+        <button type="button" class="segmented-control-btn" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="true" tabindex="0">My Library</button>
+        <button type="button" class="segmented-control-btn" role="tab" id="tab-find" aria-controls="panel-find" aria-selected="false" tabindex="-1">Find Online</button>
+      </div>
     </header>
 
-    <div class="toolbar">
-      <div class="search-box">
-        <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
-        <input type="search" class="search-input" placeholder="Search library…" aria-label="Search library" />
+    <div class="library-panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library">
+      <div class="library-toolbar">
+        <div class="search-box">
+          <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
+          <input type="search" class="search-input" placeholder="Search library…" aria-label="Search library" />
+        </div>
+        <div class="library-toolbar-actions">
+          <label class="btn btn-primary">
+            <span class="icon" aria-hidden="true">${sym.add}</span>
+            <span class="btn-label">Add PDF</span>
+            <input type="file" accept=".pdf" multiple hidden class="file-input" />
+          </label>
+          <div class="toolbar-overflow">
+            <button type="button" class="btn btn-secondary toolbar-overflow-btn" aria-expanded="false" aria-haspopup="menu" aria-label="More actions">
+              <span class="icon" aria-hidden="true">${sym.more}</span>
+            </button>
+            <div class="toolbar-overflow-menu hidden" role="menu">
+              <button type="button" class="toolbar-overflow-item folder-btn" role="menuitem">
+                <span class="icon" aria-hidden="true">${sym.folder}</span>
+                <span class="btn-label">Add Folder</span>
+              </button>
+              <button type="button" class="toolbar-overflow-item download-btn" role="menuitem">
+                <span class="icon" aria-hidden="true">${sym.download}</span>
+                <span class="btn-label">Download URL</span>
+              </button>
+              <label class="toolbar-overflow-item folder-fallback hidden" role="menuitem">
+                <span class="icon" aria-hidden="true">${sym.folder}</span>
+                <span class="btn-label">Add Folder</span>
+                <input type="file" webkitdirectory directory multiple hidden class="folder-input" />
+              </label>
+            </div>
+          </div>
+          <button class="btn btn-secondary folder-btn folder-btn-inline">
+            <span class="icon" aria-hidden="true">${sym.folder}</span>
+            <span class="btn-label">Add Folder</span>
+          </button>
+          <button class="btn btn-secondary download-btn download-btn-inline">
+            <span class="icon" aria-hidden="true">${sym.download}</span>
+            <span class="btn-label">Download URL</span>
+          </button>
+          <label class="btn btn-secondary folder-fallback folder-fallback-inline hidden">
+            <span class="icon" aria-hidden="true">${sym.folder}</span>
+            <span class="btn-label">Add Folder</span>
+            <input type="file" webkitdirectory directory multiple hidden class="folder-input-inline" />
+          </label>
+        </div>
       </div>
-      <div class="toolbar-actions">
-        <label class="btn btn-primary">
-          <span class="icon" aria-hidden="true">${sym.add}</span>
-          Add PDF
-          <input type="file" accept=".pdf" multiple hidden class="file-input" />
+
+      <div class="library-controls">
+        <label class="control-label">
+          <span class="control-glyph icon icon-glyph" aria-hidden="true">${sym.filter}</span>
+          <span class="control-text">Filter</span>
+          <select class="filter-select" aria-label="Filter library">
+            <option value="all">All</option>
+            <option value="unread">Unread</option>
+            <option value="reading">In progress</option>
+            <option value="finished">Finished</option>
+          </select>
         </label>
-        <button class="btn btn-secondary folder-btn">
-          <span class="icon" aria-hidden="true">${sym.folder}</span>
-          Add Folder
-        </button>
-        <button class="btn btn-secondary download-btn">
-          <span class="icon" aria-hidden="true">${sym.download}</span>
-          Download URL
-        </button>
-        <label class="btn btn-secondary folder-fallback hidden">
-          <span class="icon" aria-hidden="true">${sym.folder}</span>
-          Add Folder
-          <input type="file" webkitdirectory directory multiple hidden class="folder-input" />
+        <label class="control-label">
+          <span class="control-glyph icon icon-glyph" aria-hidden="true">${sym.sort}</span>
+          <span class="control-text">Sort</span>
+          <select class="sort-select" aria-label="Sort library">
+            <option value="lastOpened-desc">Recently opened</option>
+            <option value="dateAdded-desc">Date added (newest)</option>
+            <option value="dateAdded-asc">Date added (oldest)</option>
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+            <option value="size-desc">Size (largest)</option>
+            <option value="size-asc">Size (smallest)</option>
+          </select>
         </label>
+        <span class="library-count" aria-live="polite"></span>
+      </div>
+
+      <div class="content-scroll library-content">
+        <div class="pdf-list"></div>
+        <div class="empty-state hidden">
+          <div class="empty-icon icon icon-glyph" aria-hidden="true">${sym.empty}</div>
+          <p class="empty-message">No PDFs in your library yet</p>
+          <p class="empty-hint">Add a PDF or folder to get started</p>
+        </div>
       </div>
     </div>
 
-    <div class="library-controls">
-      <label class="control-label">
-        <span class="control-text">Filter</span>
-        <select class="filter-select" aria-label="Filter library">
-          <option value="all">All</option>
-          <option value="unread">Unread</option>
-          <option value="reading">In progress</option>
-          <option value="finished">Finished</option>
-        </select>
-      </label>
-      <label class="control-label">
-        <span class="control-text">Sort</span>
-        <select class="sort-select" aria-label="Sort library">
-          <option value="lastOpened-desc">Recently opened</option>
-          <option value="dateAdded-desc">Date added (newest)</option>
-          <option value="dateAdded-asc">Date added (oldest)</option>
-          <option value="name-asc">Name (A–Z)</option>
-          <option value="name-desc">Name (Z–A)</option>
-          <option value="size-desc">Size (largest)</option>
-          <option value="size-asc">Size (smallest)</option>
-        </select>
-      </label>
-      <span class="library-count" aria-live="polite"></span>
-    </div>
+    <div class="library-panel hidden" id="panel-find" role="tabpanel" aria-labelledby="tab-find" hidden></div>
 
     <div class="toast hidden"></div>
     <div class="download-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="download-dialog-title">
@@ -131,24 +202,21 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
         </div>
       </div>
     </div>
-    <div class="pdf-list"></div>
-
-    <div class="empty-state hidden">
-      <div class="empty-icon icon" aria-hidden="true">${sym.document}</div>
-      <p class="empty-message">No PDFs in your library yet</p>
-      <p class="empty-hint">Add a PDF or folder to get started</p>
-    </div>
   `;
 
+  const tabLibrary = view.querySelector('#tab-library') as HTMLButtonElement;
+  const tabFind = view.querySelector('#tab-find') as HTMLButtonElement;
+  const panelLibrary = view.querySelector('#panel-library') as HTMLElement;
+  const panelFind = view.querySelector('#panel-find') as HTMLElement;
   const searchInput = view.querySelector('.search-input') as HTMLInputElement;
   const filterSelect = view.querySelector('.filter-select') as HTMLSelectElement;
   const sortSelect = view.querySelector('.sort-select') as HTMLSelectElement;
   const libraryCount = view.querySelector('.library-count') as HTMLElement;
   const fileInput = view.querySelector('.file-input') as HTMLInputElement;
-  const folderBtn = view.querySelector('.folder-btn') as HTMLButtonElement;
-  const folderFallback = view.querySelector('.folder-fallback') as HTMLLabelElement;
-  const folderInput = view.querySelector('.folder-input') as HTMLInputElement;
-  const downloadBtn = view.querySelector('.download-btn') as HTMLButtonElement;
+  const folderBtns = view.querySelectorAll('.folder-btn') as NodeListOf<HTMLButtonElement>;
+  const folderFallbacks = view.querySelectorAll('.folder-fallback, .folder-fallback-inline') as NodeListOf<HTMLElement>;
+  const folderInputs = view.querySelectorAll('.folder-input, .folder-input-inline') as NodeListOf<HTMLInputElement>;
+  const downloadBtns = view.querySelectorAll('.download-btn, .download-btn-inline') as NodeListOf<HTMLButtonElement>;
   const downloadDialog = view.querySelector('.download-dialog') as HTMLElement;
   const downloadUrlInput = view.querySelector('.download-url-input') as HTMLInputElement;
   const downloadSaveHint = view.querySelector('.download-save-hint') as HTMLElement;
@@ -160,12 +228,26 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
   const emptyMessage = view.querySelector('.empty-message') as HTMLElement;
   const emptyHint = view.querySelector('.empty-hint') as HTMLElement;
   const toast = view.querySelector('.toast') as HTMLElement;
+  const overflowBtn = view.querySelector('.toolbar-overflow-btn') as HTMLButtonElement;
+  const overflowMenu = view.querySelector('.toolbar-overflow-menu') as HTMLElement;
 
   const prefs = loadPrefs();
   filterSelect.value = prefs.filter;
   sortSelect.value = prefs.sort;
 
   let pdfs: PdfMeta[] = [];
+  let activeTab: LibraryTab = options?.initialTab ?? loadTab();
+
+  const lookupPanel = createLookupPanel(
+    {
+      onPreview: callbacks.onPreview,
+      onAdded: () => {
+        void refresh();
+      },
+    },
+    { loadingRoot: view },
+  );
+  panelFind.appendChild(lookupPanel);
 
   function showToast(message: string, isError = false) {
     toast.textContent = message;
@@ -173,6 +255,97 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 4000);
   }
+
+  function closeOverflowMenu() {
+    overflowMenu.classList.add('hidden');
+    overflowBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function openOverflowMenu() {
+    overflowMenu.classList.remove('hidden');
+    overflowBtn.setAttribute('aria-expanded', 'true');
+    overflowMenu.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }
+
+  overflowBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (overflowMenu.classList.contains('hidden')) {
+      openOverflowMenu();
+    } else {
+      closeOverflowMenu();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!view.contains(e.target as Node)) closeOverflowMenu();
+  });
+
+  overflowMenu.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.toolbar-overflow-item')) {
+      closeOverflowMenu();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overflowMenu.classList.contains('hidden')) {
+      closeOverflowMenu();
+      overflowBtn.focus();
+    }
+  });
+
+  function setTab(tab: LibraryTab) {
+    activeTab = tab;
+    saveTab(tab);
+
+    const isLibrary = tab === 'library';
+    tabLibrary.setAttribute('aria-selected', String(isLibrary));
+    tabFind.setAttribute('aria-selected', String(!isLibrary));
+    tabLibrary.tabIndex = isLibrary ? 0 : -1;
+    tabFind.tabIndex = isLibrary ? -1 : 0;
+
+    panelLibrary.classList.toggle('hidden', !isLibrary);
+    panelFind.classList.toggle('hidden', isLibrary);
+    panelFind.hidden = isLibrary;
+    panelLibrary.hidden = !isLibrary;
+
+    if (!isLibrary) {
+      lookupPanel.querySelector<HTMLInputElement>('.lookup-query-input')?.focus();
+    }
+  }
+
+  function handleTabKeydown(e: KeyboardEvent, tabs: HTMLButtonElement[], index: number) {
+    let nextIndex = index;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextIndex = (index + 1) % tabs.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      nextIndex = (index - 1 + tabs.length) % tabs.length;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      nextIndex = tabs.length - 1;
+    } else {
+      return;
+    }
+
+    const nextTab = tabs[nextIndex];
+    setTab(nextTab.id === 'tab-find' ? 'find' : 'library');
+    nextTab.focus();
+  }
+
+  const tabs = [tabLibrary, tabFind];
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => {
+      setTab(tab.id === 'tab-find' ? 'find' : 'library');
+    });
+    tab.addEventListener('keydown', (e) => handleTabKeydown(e, tabs, index));
+  });
+
+  setTab(activeTab);
 
   function openDownloadDialog() {
     downloadUrlInput.value = '';
@@ -258,12 +431,13 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
       hasQuery || hasFilter ? `${items.length} of ${pdfs.length}` : `${items.length}`;
     libraryCount.textContent = `${countLabel} PDF${items.length === 1 ? '' : 's'}`;
 
-    for (const pdf of items) {
+    items.forEach((pdf, index) => {
       const card = document.createElement('div');
-      card.className = 'pdf-card';
+      card.className = `pdf-card${pdf.lastOpened === 0 ? ' pdf-card-unread' : ''}`;
+      card.style.setProperty('--stagger', String(index));
       card.innerHTML = `
         <div class="pdf-card-info" data-id="${pdf.id}">
-          <span class="pdf-card-icon icon" aria-hidden="true">${sym.document}</span>
+          <span class="pdf-card-icon icon icon-glyph" aria-hidden="true">${sym.document}</span>
           <div class="pdf-card-text">
             <span class="pdf-name">${escapeHtml(pdf.name)}</span>
             <span class="pdf-meta">
@@ -301,7 +475,7 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
       });
 
       pdfList.appendChild(card);
-    }
+    });
   }
 
   function startRename(card: HTMLElement, pdf: PdfMeta) {
@@ -409,21 +583,29 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
     }
   });
 
+  const folderBtnInline = view.querySelector('.folder-btn-inline') as HTMLButtonElement;
+  const folderFallbackInline = view.querySelector('.folder-fallback-inline') as HTMLLabelElement;
+
   if (isIOS()) {
-    folderBtn.classList.add('hidden');
-    folderFallback.classList.add('hidden');
+    folderBtns.forEach((btn) => btn.classList.add('hidden'));
+    folderFallbacks.forEach((el) => el.classList.add('hidden'));
+    folderBtnInline?.classList.add('hidden');
+    folderFallbackInline?.classList.add('hidden');
   } else if (supportsDirectoryPicker()) {
-    folderFallback.classList.add('hidden');
+    folderFallbacks.forEach((el) => el.classList.add('hidden'));
+    folderFallbackInline?.classList.add('hidden');
   } else {
-    folderBtn.classList.add('hidden');
-    folderFallback.classList.remove('hidden');
+    folderBtns.forEach((btn) => btn.classList.add('hidden'));
+    folderBtnInline?.classList.add('hidden');
+    folderFallbacks.forEach((el) => el.classList.remove('hidden'));
+    folderFallbackInline?.classList.remove('hidden');
   }
 
-  folderInput.addEventListener('change', async () => {
-    if (!folderInput.files?.length) return;
+  async function handleFolderInput(files: FileList | null) {
+    if (!files?.length) return;
     const hideLoading = showLoading(view, 'Scanning folder...');
     try {
-      const added = await addPdfFiles(folderInput.files);
+      const added = await addPdfFiles(files);
       await refresh();
       showToast(`Added ${added.length} PDF(s) from folder`);
     } catch (err) {
@@ -431,11 +613,17 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
       logger.logError('Failed to add folder', err);
     } finally {
       hideLoading();
-      folderInput.value = '';
     }
+  }
+
+  folderInputs.forEach((input) => {
+    input.addEventListener('change', async () => {
+      await handleFolderInput(input.files);
+      input.value = '';
+    });
   });
 
-  folderBtn.addEventListener('click', async () => {
+  async function handleFolderPicker() {
     const hideLoading = showLoading(view, 'Scanning folder...');
     try {
       const added = await addPdfFolder();
@@ -447,9 +635,17 @@ export function createLibraryView(callbacks: LibraryCallbacks): HTMLElement {
     } finally {
       hideLoading();
     }
+  }
+
+  folderBtns.forEach((btn) => {
+    btn.addEventListener('click', () => void handleFolderPicker());
+  });
+  folderBtnInline?.addEventListener('click', () => void handleFolderPicker());
+
+  downloadBtns.forEach((btn) => {
+    btn.addEventListener('click', () => openDownloadDialog());
   });
 
-  downloadBtn.addEventListener('click', () => openDownloadDialog());
   downloadCancelBtn.addEventListener('click', () => closeDownloadDialog());
   downloadCloseBtn.addEventListener('click', () => closeDownloadDialog());
   downloadSubmitBtn.addEventListener('click', () => void submitDownload());
