@@ -50,8 +50,10 @@ export function createLookupPanel(
       <button type="button" class="lookup-filter-chip" data-filter="gutenberg">Gutenberg</button>
       <button type="button" class="lookup-filter-chip" data-filter="web">Web</button>
     </div>
+    <p class="feature-hint feature-hint--compact">Archive = Internet Archive · Gutenberg = free classics · Web = broader search.</p>
 
     <p class="lookup-disclaimer">Only download PDFs you have the right to use.</p>
+    <p class="feature-hint">Preview opens without saving. Add downloads a copy to your library.</p>
     <p class="lookup-notice hidden" aria-live="polite"></p>
 
     <div class="content-scroll lookup-content">
@@ -60,7 +62,7 @@ export function createLookupPanel(
       <div class="lookup-empty empty-state hidden">
         <div class="empty-icon icon icon-glyph" aria-hidden="true">${sym.empty}</div>
         <p class="empty-message">Search for a book or author to find PDFs</p>
-        <p class="empty-hint">Results come from Internet Archive, Project Gutenberg, and the web</p>
+        <p class="empty-hint">Try a title, author, or topic.</p>
       </div>
 
       <div class="lookup-no-results empty-state hidden">

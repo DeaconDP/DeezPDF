@@ -1,12 +1,10 @@
 import {
   addPdfFiles,
-  addPdfFolder,
   downloadAndAddPdf,
   getAllPdfs,
   queryPdfs,
   removePdf,
   renamePdf,
-  supportsDirectoryPicker,
   supportsSaveFilePicker,
   type PdfFilter,
   type PdfMeta,
@@ -15,8 +13,8 @@ import {
 import { formatError, AppError } from '../lib/errors';
 import { agentDebugLog } from '../lib/agent-debug';
 import { logger } from '../lib/logger';
-import { isIOS } from '../lib/platform';
 import { showLoading } from '../components/loading';
+import { brandLogoSrc } from '../lib/brand';
 import { sym } from '../lib/symbols';
 import { createLookupPanel } from './lookup';
 import type { LookupResult } from '../lib/lookup/types';
@@ -79,7 +77,7 @@ export function createLibraryView(
     <header class="library-shell-header">
       <div class="library-brand">
         <div class="brand-mark brand-mark-compact">
-          <div class="brand-icon icon icon-glyph" aria-hidden="true">${sym.brand}</div>
+          <img class="brand-logo" src="${brandLogoSrc}" width="28" height="28" alt="" aria-hidden="true" />
         </div>
         <div class="library-brand-text">
           <h1 class="logo logo-compact">Deez<span class="accent">PDF</span></h1>
@@ -92,10 +90,11 @@ export function createLibraryView(
     </header>
 
     <div class="library-panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library">
+      <p class="feature-hint library-panel-intro">PDFs stay on this device and work offline.</p>
       <div class="library-toolbar">
         <div class="search-box">
           <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
-          <input type="search" class="search-input" placeholder="Search library…" aria-label="Search library" />
+          <input type="search" class="search-input" placeholder="Search by title…" aria-label="Search library" />
         </div>
         <div class="library-toolbar-actions">
           <label class="btn btn-primary">
@@ -103,40 +102,12 @@ export function createLibraryView(
             <span class="btn-label">Add PDF</span>
             <input type="file" accept=".pdf" multiple hidden class="file-input" />
           </label>
-          <div class="toolbar-overflow">
-            <button type="button" class="btn btn-secondary toolbar-overflow-btn" aria-expanded="false" aria-haspopup="menu" aria-label="More actions">
-              <span class="icon" aria-hidden="true">${sym.more}</span>
-            </button>
-            <div class="toolbar-overflow-menu hidden" role="menu">
-              <button type="button" class="toolbar-overflow-item folder-btn" role="menuitem">
-                <span class="icon" aria-hidden="true">${sym.folder}</span>
-                <span class="btn-label">Add Folder</span>
-              </button>
-              <button type="button" class="toolbar-overflow-item download-btn" role="menuitem">
-                <span class="icon" aria-hidden="true">${sym.download}</span>
-                <span class="btn-label">Download URL</span>
-              </button>
-              <label class="toolbar-overflow-item folder-fallback hidden" role="menuitem">
-                <span class="icon" aria-hidden="true">${sym.folder}</span>
-                <span class="btn-label">Add Folder</span>
-                <input type="file" webkitdirectory directory multiple hidden class="folder-input" />
-              </label>
-            </div>
-          </div>
-          <button class="btn btn-secondary folder-btn folder-btn-inline">
-            <span class="icon" aria-hidden="true">${sym.folder}</span>
-            <span class="btn-label">Add Folder</span>
-          </button>
-          <button class="btn btn-secondary download-btn download-btn-inline">
+          <button type="button" class="btn btn-primary download-btn download-btn-inline">
             <span class="icon" aria-hidden="true">${sym.download}</span>
             <span class="btn-label">Download URL</span>
           </button>
-          <label class="btn btn-secondary folder-fallback folder-fallback-inline hidden">
-            <span class="icon" aria-hidden="true">${sym.folder}</span>
-            <span class="btn-label">Add Folder</span>
-            <input type="file" webkitdirectory directory multiple hidden class="folder-input-inline" />
-          </label>
         </div>
+        <p class="feature-hint feature-hint--compact">Add files from your device, or download from a direct PDF link.</p>
       </div>
 
       <div class="library-controls">
@@ -165,13 +136,14 @@ export function createLibraryView(
         </label>
         <span class="library-count" aria-live="polite"></span>
       </div>
+      <p class="feature-hint feature-hint--compact">Unread = not opened yet · In progress = partly read · Finished = last page reached.</p>
 
       <div class="content-scroll library-content">
         <div class="pdf-list"></div>
         <div class="empty-state hidden">
           <div class="empty-icon icon icon-glyph" aria-hidden="true">${sym.empty}</div>
           <p class="empty-message">No PDFs in your library yet</p>
-          <p class="empty-hint">Add a PDF or folder to get started</p>
+          <p class="empty-hint">Add a PDF to get started</p>
         </div>
       </div>
     </div>
@@ -187,7 +159,7 @@ export function createLibraryView(
             <span class="icon" aria-hidden="true">${sym.close}</span>
           </button>
         </div>
-        <p class="download-dialog-hint">Enter a direct link to a PDF file.</p>
+        <p class="download-dialog-hint">Paste a direct link that ends in .pdf — not a webpage.</p>
         <label class="download-url-label">
           <span class="control-text">PDF URL</span>
           <input type="url" class="download-url-input" placeholder="https://example.com/document.pdf" autocomplete="url" inputmode="url" />
@@ -213,10 +185,7 @@ export function createLibraryView(
   const sortSelect = view.querySelector('.sort-select') as HTMLSelectElement;
   const libraryCount = view.querySelector('.library-count') as HTMLElement;
   const fileInput = view.querySelector('.file-input') as HTMLInputElement;
-  const folderBtns = view.querySelectorAll('.folder-btn') as NodeListOf<HTMLButtonElement>;
-  const folderFallbacks = view.querySelectorAll('.folder-fallback, .folder-fallback-inline') as NodeListOf<HTMLElement>;
-  const folderInputs = view.querySelectorAll('.folder-input, .folder-input-inline') as NodeListOf<HTMLInputElement>;
-  const downloadBtns = view.querySelectorAll('.download-btn, .download-btn-inline') as NodeListOf<HTMLButtonElement>;
+  const downloadBtn = view.querySelector('.download-btn-inline') as HTMLButtonElement;
   const downloadDialog = view.querySelector('.download-dialog') as HTMLElement;
   const downloadUrlInput = view.querySelector('.download-url-input') as HTMLInputElement;
   const downloadSaveHint = view.querySelector('.download-save-hint') as HTMLElement;
@@ -228,8 +197,6 @@ export function createLibraryView(
   const emptyMessage = view.querySelector('.empty-message') as HTMLElement;
   const emptyHint = view.querySelector('.empty-hint') as HTMLElement;
   const toast = view.querySelector('.toast') as HTMLElement;
-  const overflowBtn = view.querySelector('.toolbar-overflow-btn') as HTMLButtonElement;
-  const overflowMenu = view.querySelector('.toolbar-overflow-menu') as HTMLElement;
 
   const prefs = loadPrefs();
   filterSelect.value = prefs.filter;
@@ -255,44 +222,6 @@ export function createLibraryView(
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 4000);
   }
-
-  function closeOverflowMenu() {
-    overflowMenu.classList.add('hidden');
-    overflowBtn.setAttribute('aria-expanded', 'false');
-  }
-
-  function openOverflowMenu() {
-    overflowMenu.classList.remove('hidden');
-    overflowBtn.setAttribute('aria-expanded', 'true');
-    overflowMenu.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }
-
-  overflowBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (overflowMenu.classList.contains('hidden')) {
-      openOverflowMenu();
-    } else {
-      closeOverflowMenu();
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!view.contains(e.target as Node)) closeOverflowMenu();
-  });
-
-  overflowMenu.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('.toolbar-overflow-item')) {
-      closeOverflowMenu();
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overflowMenu.classList.contains('hidden')) {
-      closeOverflowMenu();
-      overflowBtn.focus();
-    }
-  });
 
   function setTab(tab: LibraryTab) {
     activeTab = tab;
@@ -415,7 +344,7 @@ export function createLibraryView(
 
       if (pdfs.length === 0) {
         emptyMessage.textContent = 'No PDFs in your library yet';
-        emptyHint.textContent = 'Add a PDF or folder to get started';
+        emptyHint.textContent = 'Add a PDF to get started';
         emptyHint.classList.remove('hidden');
       } else {
         emptyMessage.textContent = 'No PDFs match your filters';
@@ -583,68 +512,7 @@ export function createLibraryView(
     }
   });
 
-  const folderBtnInline = view.querySelector('.folder-btn-inline') as HTMLButtonElement;
-  const folderFallbackInline = view.querySelector('.folder-fallback-inline') as HTMLLabelElement;
-
-  if (isIOS()) {
-    folderBtns.forEach((btn) => btn.classList.add('hidden'));
-    folderFallbacks.forEach((el) => el.classList.add('hidden'));
-    folderBtnInline?.classList.add('hidden');
-    folderFallbackInline?.classList.add('hidden');
-  } else if (supportsDirectoryPicker()) {
-    folderFallbacks.forEach((el) => el.classList.add('hidden'));
-    folderFallbackInline?.classList.add('hidden');
-  } else {
-    folderBtns.forEach((btn) => btn.classList.add('hidden'));
-    folderBtnInline?.classList.add('hidden');
-    folderFallbacks.forEach((el) => el.classList.remove('hidden'));
-    folderFallbackInline?.classList.remove('hidden');
-  }
-
-  async function handleFolderInput(files: FileList | null) {
-    if (!files?.length) return;
-    const hideLoading = showLoading(view, 'Scanning folder...');
-    try {
-      const added = await addPdfFiles(files);
-      await refresh();
-      showToast(`Added ${added.length} PDF(s) from folder`);
-    } catch (err) {
-      showToast(formatError(err), true);
-      logger.logError('Failed to add folder', err);
-    } finally {
-      hideLoading();
-    }
-  }
-
-  folderInputs.forEach((input) => {
-    input.addEventListener('change', async () => {
-      await handleFolderInput(input.files);
-      input.value = '';
-    });
-  });
-
-  async function handleFolderPicker() {
-    const hideLoading = showLoading(view, 'Scanning folder...');
-    try {
-      const added = await addPdfFolder();
-      await refresh();
-      showToast(`Added ${added.length} PDF(s) from folder`);
-    } catch (err) {
-      showToast(formatError(err), true);
-      logger.logError('Failed to add folder', err);
-    } finally {
-      hideLoading();
-    }
-  }
-
-  folderBtns.forEach((btn) => {
-    btn.addEventListener('click', () => void handleFolderPicker());
-  });
-  folderBtnInline?.addEventListener('click', () => void handleFolderPicker());
-
-  downloadBtns.forEach((btn) => {
-    btn.addEventListener('click', () => openDownloadDialog());
-  });
+  downloadBtn.addEventListener('click', () => openDownloadDialog());
 
   downloadCancelBtn.addEventListener('click', () => closeDownloadDialog());
   downloadCloseBtn.addEventListener('click', () => closeDownloadDialog());

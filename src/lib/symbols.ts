@@ -1,7 +1,5 @@
 /** Monochrome Unicode symbols — mathematical, technical, alchemical-adjacent */
 export const sym = {
-  brand: 'ℵ',
-  loading: 'ℵ',
   search: '⌕',
   lookup: '⎔',
   add: '⊕',

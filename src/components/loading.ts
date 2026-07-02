@@ -1,11 +1,11 @@
-import { sym } from '../lib/symbols';
+import { brandLogoSrc } from '../lib/brand';
 
 export function createLoadingOverlay(message = 'Loading...'): HTMLElement {
   const overlay = document.createElement('div');
   overlay.className = 'loading-overlay';
   overlay.innerHTML = `
     <div class="loading-orbit">
-      <span class="loading-glyph icon icon-glyph" aria-hidden="true">${sym.loading}</span>
+      <img class="loading-logo" src="${brandLogoSrc}" width="20" height="20" alt="" aria-hidden="true" />
     </div>
     <p class="loading-text">${message}</p>
   `;

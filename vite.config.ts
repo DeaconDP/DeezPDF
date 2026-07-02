@@ -24,7 +24,14 @@ export default defineConfig({
       : [
           VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
+            includeAssets: [
+              'favicon.ico',
+              'icon-192.png',
+              'icon-512.png',
+              'icon-192-maskable.png',
+              'icon-512-maskable.png',
+              'apple-touch-icon.png',
+            ],
             manifest: {
               name: 'DeezPDF Reader',
               short_name: 'DeezPDF',
@@ -34,6 +41,12 @@ export default defineConfig({
               display: 'standalone',
               start_url: '/',
               icons: [
+                {
+                  src: 'favicon.ico',
+                  sizes: '16x16 32x32',
+                  type: 'image/x-icon',
+                  purpose: 'any',
+                },
                 {
                   src: 'icon-192.png',
                   sizes: '192x192',
@@ -47,10 +60,16 @@ export default defineConfig({
                   purpose: 'any',
                 },
                 {
-                  src: 'favicon.svg',
-                  sizes: 'any',
-                  type: 'image/svg+xml',
-                  purpose: 'any',
+                  src: 'icon-192-maskable.png',
+                  sizes: '192x192',
+                  type: 'image/png',
+                  purpose: 'maskable',
+                },
+                {
+                  src: 'icon-512-maskable.png',
+                  sizes: '512x512',
+                  type: 'image/png',
+                  purpose: 'maskable',
                 },
               ],
             },

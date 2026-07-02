@@ -95,6 +95,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
         </div>
       </div>
     </header>
+    <p class="reader-tips" aria-live="polite"></p>
     <div class="reader-canvas-container">
       <div class="reader-canvas-wrapper">
         <canvas class="reader-canvas"></canvas>
@@ -103,6 +104,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     </div>
     <div class="swipe-hint" aria-hidden="true">
       <span class="icon">${sym.swipe}</span>
+      <span class="swipe-hint-text">Swipe to turn pages</span>
     </div>
     <span class="visually-hidden pdf-title">Loading…</span>
   `;
@@ -131,6 +133,15 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
   const readerOverflowTheme = view.querySelector('.reader-overflow-theme') as HTMLButtonElement;
   const canvasContainer = view.querySelector('.reader-canvas-container') as HTMLElement;
   const canvasWrapper = view.querySelector('.reader-canvas-wrapper') as HTMLElement;
+  const readerTips = view.querySelector('.reader-tips') as HTMLElement;
+
+  const PAGE_MODE_TIPS = 'Use arrow keys to turn pages. Pinch or scroll to zoom.';
+  const TEXT_MODE_TIPS = 'Adjust font size with +/−. Toggle dark mode for easier reading.';
+
+  function updateReaderTips(textMode: boolean): void {
+    const base = textMode ? TEXT_MODE_TIPS : PAGE_MODE_TIPS;
+    readerTips.textContent = isPreview ? `This preview is temporary. ${base}` : base;
+  }
 
   const renderer = new PdfRenderer(canvas, textPanel, canvasContainer, canvasWrapper);
   const previousTitle = document.title;
@@ -167,6 +178,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
   }
 
   applyTextTheme(textTheme);
+  updateReaderTips(false);
 
   function updatePageProgress(page: number, total: number): void {
     pageIndicator.textContent = `${page} / ${total}`;
@@ -244,6 +256,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     readerOverflowTheme.hidden = !enabled;
     canvas.hidden = enabled;
     textPanel.hidden = !enabled;
+    updateReaderTips(enabled);
   }
 
   async function toggleTextMode(): Promise<void> {
